@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env.local
+.env
+.DS_Store
+
+# Build artifacts emitted by tsc -b / vite config compilation
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
