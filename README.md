@@ -31,6 +31,43 @@ npm run dev                  # http://localhost:5173
 
 That's it — reload the app and start a game.
 
+## Adding songs (automated ingestion)
+
+Instead of hand-editing SQL and uploading full songs, `scripts/ingest.mjs` downloads **only a
+~15-second clip** of each song and seeds it. Storing clips (~120–235 KB) instead of full tracks
+(~5 MB) raises the free-tier ceiling from ~200 songs to several thousand.
+
+**One-time setup:**
+
+```bash
+brew install yt-dlp ffmpeg          # system tools that fetch + trim audio
+```
+
+Add two server-side secrets to `.env.local` (see `.env.example`) — these are **not** `VITE_`-prefixed
+so they never reach the browser:
+
+- `SUPABASE_SERVICE_ROLE_KEY` — Supabase → Project Settings → API → `service_role` (keep secret).
+- `YOUTUBE_API_KEY` — only needed for songs listed with a search `query`.
+
+**Add songs:** edit `scripts/songs.vandebo.json`. Each song needs a `title` and either a
+`youtubeUrl`/`videoId` (no API key needed) or a `query` (uses the YouTube API to find it).
+Optionally set `start` (seconds into the track; defaults to ~30% in) and `slug` (the stored filename).
+
+```jsonc
+{ "title": "Цагийн Ово", "slug": "tsagiin-ovoo", "youtubeUrl": "https://youtu.be/…", "start": 45 }
+```
+
+**Run it:**
+
+```bash
+npm run ingest                       # uses scripts/songs.vandebo.json
+npm run ingest -- path/to/other.json # a different list
+npm run ingest -- --force            # re-download songs that already exist
+```
+
+It's idempotent — songs already in the DB are skipped unless `--force`. `snippet_start` is `0`
+because the stored file *is* the snippet, so no app changes are needed.
+
 ## How it works
 
 - `src/game/useGameEngine.ts` — the game state machine (idle → playing → revealed → gameover),

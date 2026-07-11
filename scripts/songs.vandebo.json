@@ -1,0 +1,52 @@
+{
+  "artist": { "name": "Вандебо", "slug": "vandebo" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    {
+      "title": "Чамин юм",
+      "slug": "chamin-yum",
+      "youtubeUrl": "https://youtu.be/54f9NrRLJIY",
+      "start": 45
+    },
+    {
+      "title": "Мөнгө бол тоо",
+      "slug": "munguboltoo",
+      "query": "Vandebo Мөнгө бол тоо"
+    },
+    {
+      "title": "Дөнгөн данган",
+      "slug": "dungundangan",
+      "query": "Vandebo Дөнгөн данган"
+    },
+    {
+      "title": "Сэрүүлгэ",
+      "slug": "seruulge",
+      "query": "Vandebo Сэрүүлгэ"
+    },
+    {
+      "title": "Хару Хару",
+      "slug": "haruharu",
+      "query": "Vandebo Хару Хару"
+    },
+    {
+      "title": "Яаанаа",
+      "slug": "yaanaa",
+      "query": "Vandebo Яаанаа"
+    },
+    {
+      "title": "Broke and Down",
+      "slug": "broke&down",
+      "query": "Vandebo Broke and Down"
+    },
+    {
+      "title": "Too Deep",
+      "slug": "toodeep",
+      "query": "Vandebo Too Deep"
+    },
+    {
+      "title": "Намайг Тоо",
+      "slug": "namaigtoo",
+      "query": "Vandebo Намайг Тоо"
+    }
+  ]
+}

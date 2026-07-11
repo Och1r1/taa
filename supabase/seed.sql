@@ -22,7 +22,7 @@ from a
 cross join (values
   ('Мөнгө бол тоо',    'vandebo/munguboltoo.mp3',   30, 15),
   ('Дөнгөн данган',  'vandebo/dungundangan.mp3', 30, 15),
-  ('Сэрүүлгэ',       'vandebo/seruuleg.mp3',        30, 15),
+  ('Сэрүүлэг',       'vandebo/seruuleg.mp3',        30, 15),
   ('Хару Хару',  'vandebo/haruharu.mp3',  30, 15),
   ('Яаанаа',          'vandebo/yaanaa.mp3',           30, 15),
   ('Broke and Down',         'vandebo/broke&down.mp3',          30, 15),
