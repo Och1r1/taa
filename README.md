@@ -28,6 +28,8 @@ npm run dev                  # http://localhost:5173
    - `supabase/schema.sql` — creates `artists` + `songs` tables and read-only RLS policies.
    - `supabase/seed.sql` — inserts Vandebo + songs. **Edit the `audio_path` / `title` values
      to match the files you actually uploaded** before running.
+   - `supabase/leaderboard.sql` — creates the `scores` table + policies for the persistent
+     leaderboard (Онооны самбар). Safe to run once; no editing needed.
 
 That's it — reload the app and start a game.
 

@@ -16,6 +16,12 @@
       radial-gradient(50rem 40rem at 100% 0%, rgba(34, 211, 238, 0.1), transparent 55%);
     background-attachment: fixed;
   }
+
+  /* Some browsers don't inherit text color into <button>, leaving button text
+     dark-on-dark. Force inheritance so option/category/artist cards stay legible. */
+  button {
+    color: inherit;
+  }
 }
 
 @layer components {

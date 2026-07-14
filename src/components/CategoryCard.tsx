@@ -39,8 +39,12 @@ export function CategoryCard({
         {icon}
       </span>
       <div>
-        <div className="text-lg font-bold text-ink">{title}</div>
-        <div className="text-sm text-muted">{subtitle}</div>
+        <div className="text-lg font-bold text-ink" style={{ color: '#f2f4f8' }}>
+          {title}
+        </div>
+        <div className="text-sm text-muted" style={{ color: '#8b93a7' }}>
+          {subtitle}
+        </div>
       </div>
       {!active && (
         <span className="absolute right-3 top-3 rounded-full bg-raised px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-2">

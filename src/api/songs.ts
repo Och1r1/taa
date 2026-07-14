@@ -1,5 +1,5 @@
 import { supabase, AUDIO_BUCKET } from '../lib/supabase'
-import type { Song } from '../types'
+import type { ArtistOption, Song } from '../types'
 
 interface SongRow {
   id: string
@@ -8,6 +8,35 @@ interface SongRow {
   audio_path: string
   snippet_start: number
   snippet_duration: number
+}
+
+interface ArtistRow {
+  id: string
+  name: string
+  slug: string
+  songs: { count: number }[]
+}
+
+/**
+ * Fetch every artist along with its song count, so the home screen can offer a
+ * picker. New artists added via the ingestion pipeline appear here automatically.
+ */
+export async function fetchArtists(): Promise<ArtistOption[]> {
+  const { data, error } = await supabase
+    .from('artists')
+    .select('id, name, slug, songs(count)')
+    .order('name')
+
+  if (error) {
+    throw new Error(`Уран бүтээлчдийг татаж чадсангүй: ${error.message}`)
+  }
+
+  return ((data ?? []) as ArtistRow[]).map((a) => ({
+    id: a.id,
+    name: a.name,
+    slug: a.slug,
+    songCount: a.songs?.[0]?.count ?? 0,
+  }))
 }
 
 /**

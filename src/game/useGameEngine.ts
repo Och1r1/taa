@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
-import type { GameConfig, GamePhase, Round, RoundResult, Song } from '../types'
+import type { GameConfig, GamePhase, Round, RoundOutcome, RoundResult, Song } from '../types'
 import { fetchSongsByArtistSlug } from '../api/songs'
-import { buildOptions, pickRandom } from './shuffle'
+import { buildOptions, pickRandom, shuffle } from './shuffle'
 import { computePoints } from './scoring'
 import { useAudioSnippet } from '../audio/useAudioSnippet'
 
@@ -17,6 +17,7 @@ const TICK_SECONDS = TICK_MS / 1000
 interface EngineState {
   phase: GamePhase
   config: GameConfig
+  artistSlug: string | null
   pool: Song[]
   usedIds: string[]
   round: Round | null
@@ -26,14 +27,18 @@ interface EngineState {
   results: RoundResult[]
   lastResult: RoundResult | null
   pickedSongId: string | null
+  hintUsedThisRound: boolean
+  eliminatedOptionId: string | null
   error: string | null
 }
 
 type Action =
-  | { type: 'LOADING' }
+  | { type: 'LOADING'; slug: string; config: GameConfig }
   | { type: 'LOADED'; pool: Song[] }
   | { type: 'TICK' }
   | { type: 'ANSWER'; songId: string | null }
+  | { type: 'SKIP' }
+  | { type: 'HINT' }
   | { type: 'NEXT' }
   | { type: 'ERROR'; message: string }
   | { type: 'RESET' }
@@ -42,6 +47,7 @@ function initialState(config: GameConfig): EngineState {
   return {
     phase: 'idle',
     config,
+    artistSlug: null,
     pool: [],
     usedIds: [],
     round: null,
@@ -51,6 +57,8 @@ function initialState(config: GameConfig): EngineState {
     results: [],
     lastResult: null,
     pickedSongId: null,
+    hintUsedThisRound: false,
+    eliminatedOptionId: null,
     error: null,
   }
 }
@@ -63,12 +71,18 @@ function makeRound(pool: Song[], usedIds: string[]): { round: Round; answer: Son
   return { round: { answer, options: buildOptions(answer, pool) }, answer }
 }
 
-function reveal(state: EngineState, songId: string | null): EngineState {
+function reveal(
+  state: EngineState,
+  songId: string | null,
+  forcedOutcome?: RoundOutcome,
+): EngineState {
   const { round, config } = state
   if (!round) return state
   const correct = songId === round.answer.id
+  const outcome: RoundOutcome = forcedOutcome ?? (correct ? 'correct' : 'wrong')
+  const hintUsed = state.hintUsedThisRound
   const timeLeft = Math.max(0, state.timeLeft)
-  const points = computePoints(correct, timeLeft, config.timePerRound, config.maxPoints)
+  const points = computePoints(correct, timeLeft, config.timePerRound, config.maxPoints, hintUsed)
   const pickedTitle = songId
     ? round.options.find((o) => o.songId === songId)?.title ?? null
     : null
@@ -78,6 +92,8 @@ function reveal(state: EngineState, songId: string | null): EngineState {
     answerTitle: round.answer.title,
     pickedTitle,
     correct,
+    outcome,
+    hintUsed,
     timeLeft,
     points,
   }
@@ -96,13 +112,14 @@ function reveal(state: EngineState, songId: string | null): EngineState {
 function reducer(state: EngineState, action: Action): EngineState {
   switch (action.type) {
     case 'LOADING':
-      return { ...initialState(state.config), phase: 'loading' }
+      return { ...initialState(action.config), phase: 'loading', artistSlug: action.slug }
 
     case 'LOADED': {
       const { round, answer } = makeRound(action.pool, [])
       return {
         ...initialState(state.config),
         phase: 'playing',
+        artistSlug: state.artistSlug,
         pool: action.pool,
         usedIds: [answer.id],
         round,
@@ -114,13 +131,26 @@ function reducer(state: EngineState, action: Action): EngineState {
     case 'TICK': {
       if (state.phase !== 'playing') return state
       const next = state.timeLeft - TICK_SECONDS
-      if (next <= 0) return reveal({ ...state, timeLeft: 0 }, null)
+      if (next <= 0) return reveal({ ...state, timeLeft: 0 }, null, 'timeout')
       return { ...state, timeLeft: next }
     }
 
     case 'ANSWER':
       if (state.phase !== 'playing') return state
       return reveal(state, action.songId)
+
+    case 'SKIP':
+      if (state.phase !== 'playing') return state
+      return reveal(state, null, 'skipped')
+
+    case 'HINT': {
+      if (state.phase !== 'playing' || !state.round || state.hintUsedThisRound) return state
+      // Eliminate one random wrong option.
+      const wrong = state.round.options.filter((o) => o.songId !== state.round!.answer.id)
+      if (wrong.length === 0) return state
+      const eliminated = shuffle(wrong)[0]
+      return { ...state, hintUsedThisRound: true, eliminatedOptionId: eliminated.songId }
+    }
 
     case 'NEXT': {
       if (state.phase !== 'revealed') return state
@@ -136,6 +166,8 @@ function reducer(state: EngineState, action: Action): EngineState {
         timeLeft: state.config.timePerRound,
         lastResult: null,
         pickedSongId: null,
+        hintUsedThisRound: false,
+        eliminatedOptionId: null,
       }
     }
 
@@ -173,15 +205,15 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
   }, [roundAnswerId, state.phase])
 
   const startRef = useRef(false)
-  const start = useCallback(async () => {
+  const start = useCallback(async (slug: string, config: GameConfig = DEFAULT_CONFIG) => {
     if (startRef.current) return
     startRef.current = true
-    dispatch({ type: 'LOADING' })
+    dispatch({ type: 'LOADING', slug, config })
     try {
-      const pool = await fetchSongsByArtistSlug('vandebo')
+      const pool = await fetchSongsByArtistSlug(slug)
       if (pool.length < 4) {
         throw new Error(
-          `Дор хаяж 4 дуу шаардлагатай (одоо ${pool.length}). Supabase-д seed.sql ажиллуулна уу.`,
+          `Дор хаяж 4 дуу шаардлагатай (одоо ${pool.length}). Уран бүтээлчид дуу нэмнэ үү.`,
         )
       }
       dispatch({ type: 'LOADED', pool })
@@ -196,6 +228,13 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
     stop()
     dispatch({ type: 'ANSWER', songId })
   }, [stop])
+
+  const skip = useCallback(() => {
+    stop()
+    dispatch({ type: 'SKIP' })
+  }, [stop])
+
+  const hint = useCallback(() => dispatch({ type: 'HINT' }), [])
 
   const next = useCallback(() => dispatch({ type: 'NEXT' }), [])
   const reset = useCallback(() => {
@@ -215,6 +254,8 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
     isAudioPlaying: isPlaying,
     start,
     answer,
+    skip,
+    hint,
     next,
     reset,
     replaySnippet,

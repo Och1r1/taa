@@ -1,0 +1,41 @@
+{
+  "artist": { "name": "Morningstar", "slug": "morningstar" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    {
+      "title": "Lust",
+      "slug": "lust",
+      "youtubeUrl": "https://youtu.be/lTCEJTVtbFc"
+    },
+    {
+      "title": "Night Sky",
+      "slug": "night-sky",
+      "youtubeUrl": "https://youtu.be/pcU7DkwW_IA"
+    },
+    {
+      "title": "bodliin gunees",
+      "slug": "bodliin-gunees",
+      "youtubeUrl": "https://youtu.be/CG-xIWasGEw"
+    },
+    {
+      "title": "үүрнээсээ чи",
+      "slug": "uurneesee-chi",
+      "youtubeUrl": "https://youtu.be/SgHldVP0aak"
+    },
+    {
+      "title": "Fallen angel",
+      "slug": "fallen-angel",
+      "youtubeUrl": "https://youtu.be/JVfecSGrVgU"
+    },
+    {
+      "title": "Chihiro",
+      "slug": "chihiro",
+      "youtubeUrl": "https://youtu.be/SMTroeOvB_k"
+    },
+    {
+      "title": "Pluto Planet",
+      "slug": "pluto-planet",
+      "youtubeUrl": "https://youtu.be/yYM4P_R6Nr0"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import type { GameEngine } from '../game/useGameEngine'
+import type { RoundOutcome } from '../types'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { OptionCard } from '../components/OptionCard'
@@ -7,6 +8,13 @@ import { TimerBar } from '../components/TimerBar'
 interface Props {
   engine: GameEngine
   onQuit: () => void
+}
+
+const OUTCOME_LABEL: Record<RoundOutcome, string> = {
+  correct: 'Зөв!',
+  wrong: 'Буруу байна',
+  timeout: 'Хугацаа дууслаа',
+  skipped: 'Алгассан',
 }
 
 export function GameScreen({ engine, onQuit }: Props) {
@@ -19,8 +27,12 @@ export function GameScreen({ engine, onQuit }: Props) {
     score,
     lastResult,
     pickedSongId,
+    hintUsedThisRound,
+    eliminatedOptionId,
     isAudioPlaying,
     answer,
+    hint,
+    skip,
     next,
     replaySnippet,
     reset,
@@ -103,10 +115,31 @@ export function GameScreen({ engine, onQuit }: Props) {
             revealed={revealed}
             isAnswer={opt.songId === round.answer.id}
             isPicked={opt.songId === pickedSongId}
+            eliminated={opt.songId === eliminatedOptionId}
             onPick={answer}
           />
         ))}
       </div>
+
+      {/* Hint + Skip */}
+      {!revealed && (
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <button
+            onClick={hint}
+            disabled={hintUsedThisRound}
+            className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-ink-soft transition hover:border-amber/60 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Нэг буруу хариултыг арилгана (оноо хагасална)"
+          >
+            💡 Сэжүүр{hintUsedThisRound ? ' · ашигласан' : ''}
+          </button>
+          <button
+            onClick={skip}
+            className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-muted transition hover:border-pink/60 hover:text-ink"
+          >
+            Алгасах →
+          </button>
+        </div>
+      )}
 
       {/* Reveal banner */}
       {revealed && lastResult && (
@@ -118,9 +151,10 @@ export function GameScreen({ engine, onQuit }: Props) {
           >
             {lastResult.correct
               ? `Зөв! +${lastResult.points.toLocaleString()} оноо`
-              : lastResult.pickedTitle
-                ? 'Буруу байна'
-                : 'Хугацаа дууслаа'}
+              : OUTCOME_LABEL[lastResult.outcome]}
+            {lastResult.correct && lastResult.hintUsed && (
+              <div className="mt-1 text-sm font-normal text-amber">💡 Сэжүүр — оноо хагасласан</div>
+            )}
             {!lastResult.correct && (
               <div className="mt-1 text-sm font-normal text-muted">
                 Зөв хариулт: <span className="text-ink">{lastResult.answerTitle}</span>

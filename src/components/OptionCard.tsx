@@ -7,6 +7,8 @@ interface Props {
   revealed: boolean
   isAnswer: boolean
   isPicked: boolean
+  /** Removed by a hint (Сэжүүр) — shown struck-through and unclickable. */
+  eliminated?: boolean
   onPick: (songId: string) => void
 }
 
@@ -20,6 +22,7 @@ export function OptionCard({
   revealed,
   isAnswer,
   isPicked,
+  eliminated = false,
   onPick,
 }: Props) {
   let state = 'idle'
@@ -27,6 +30,8 @@ export function OptionCard({
     if (isAnswer) state = 'correct'
     else if (isPicked) state = 'wrong'
     else state = 'dim'
+  } else if (eliminated) {
+    state = 'dim'
   }
 
   const stateClass = {
@@ -38,7 +43,7 @@ export function OptionCard({
 
   return (
     <button
-      disabled={disabled}
+      disabled={disabled || eliminated}
       onClick={() => onPick(option.songId)}
       className={`group flex w-full items-center gap-4 rounded-2xl border-2 px-5 py-4 text-left
         text-ink transition disabled:cursor-default ${stateClass}`}
@@ -52,7 +57,10 @@ export function OptionCard({
       >
         {SHAPES[index % 4]}
       </span>
-      <span className="text-base font-semibold" style={{ color: '#ffffff' }}>
+      <span
+        className="text-base font-semibold"
+        style={{ color: '#ffffff', textDecoration: eliminated && !revealed ? 'line-through' : 'none' }}
+      >
         {option.title}
       </span>
       {revealed && isAnswer && <span className="ml-auto text-accent-green">✓</span>}

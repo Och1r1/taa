@@ -1,19 +1,27 @@
+import { useState } from 'react'
 import { useGameEngine } from './game/useGameEngine'
 import { HomeScreen } from './screens/HomeScreen'
 import { GameScreen } from './screens/GameScreen'
 import { ResultsScreen } from './screens/ResultsScreen'
+import { LeaderboardScreen } from './screens/LeaderboardScreen'
+
+type HomeView = 'home' | 'leaderboard'
 
 export default function App() {
   const engine = useGameEngine()
+  const [view, setView] = useState<HomeView>('home')
 
   if (engine.phase === 'gameover') {
+    const lastSlug = engine.artistSlug
+    const lastConfig = engine.config
     return (
       <ResultsScreen
         score={engine.score}
         results={engine.results}
+        artistSlug={lastSlug}
         onPlayAgain={() => {
           engine.reset()
-          void engine.start()
+          if (lastSlug) void engine.start(lastSlug, lastConfig)
         }}
         onHome={engine.reset}
       />
@@ -21,7 +29,15 @@ export default function App() {
   }
 
   if (engine.phase === 'idle') {
-    return <HomeScreen onStart={() => void engine.start()} />
+    if (view === 'leaderboard') {
+      return <LeaderboardScreen onBack={() => setView('home')} />
+    }
+    return (
+      <HomeScreen
+        onStart={(slug, config) => void engine.start(slug, config)}
+        onOpenLeaderboard={() => setView('leaderboard')}
+      />
+    )
   }
 
   // loading | playing | revealed | error
