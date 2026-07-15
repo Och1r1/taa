@@ -4,10 +4,6 @@ import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchGlobalTopScores } from '../api/scores'
 import { isSupabaseConfigured } from '../lib/supabase'
 
-interface Props {
-  onBack: () => void
-}
-
 const RANK = ['🥇', '🥈', '🥉']
 
 /** Capitalize an artist slug for display (e.g. "morningstar" → "Morningstar"). */
@@ -15,7 +11,7 @@ function prettyArtist(slug: string): string {
   return slug.charAt(0).toUpperCase() + slug.slice(1)
 }
 
-export function LeaderboardScreen({ onBack }: Props) {
+export function LeaderboardScreen() {
   const [scores, setScores] = useState<ScoreEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -36,18 +32,7 @@ export function LeaderboardScreen({ onBack }: Props) {
   }, [])
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 py-12">
-      {/* Top bar */}
-      <div className="mb-10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <EqualizerBars className="h-6" />
-          <span className="text-xl font-extrabold tracking-tight">Таа</span>
-        </div>
-        <button onClick={onBack} className="text-sm text-muted hover:text-ink">
-          ← Нүүр
-        </button>
-      </div>
-
+    <div className="mx-auto w-full max-w-2xl px-6 pb-16 pt-10">
       {/* Title */}
       <div className="mb-8 animate-fade-up">
         <h1 className="text-4xl font-extrabold leading-tight">

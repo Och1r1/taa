@@ -4,12 +4,11 @@ import { HomeScreen } from './screens/HomeScreen'
 import { GameScreen } from './screens/GameScreen'
 import { ResultsScreen } from './screens/ResultsScreen'
 import { LeaderboardScreen } from './screens/LeaderboardScreen'
-
-type HomeView = 'home' | 'leaderboard'
+import { Header, type NavView } from './components/Header'
 
 export default function App() {
   const engine = useGameEngine()
-  const [view, setView] = useState<HomeView>('home')
+  const [view, setView] = useState<NavView>('home')
 
   if (engine.phase === 'gameover') {
     const lastSlug = engine.artistSlug
@@ -29,14 +28,15 @@ export default function App() {
   }
 
   if (engine.phase === 'idle') {
-    if (view === 'leaderboard') {
-      return <LeaderboardScreen onBack={() => setView('home')} />
-    }
     return (
-      <HomeScreen
-        onStart={(slug, config) => void engine.start(slug, config)}
-        onOpenLeaderboard={() => setView('leaderboard')}
-      />
+      <div>
+        <Header active={view} onNavigate={setView} />
+        {view === 'leaderboard' ? (
+          <LeaderboardScreen />
+        ) : (
+          <HomeScreen onStart={(slug, config) => void engine.start(slug, config)} />
+        )}
+      </div>
     )
   }
 

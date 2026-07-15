@@ -2,6 +2,7 @@ import type { GameEngine } from '../game/useGameEngine'
 import type { RoundOutcome } from '../types'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
+import { MediaStage } from '../components/MediaStage'
 import { OptionCard } from '../components/OptionCard'
 import { TimerBar } from '../components/TimerBar'
 
@@ -29,12 +30,10 @@ export function GameScreen({ engine, onQuit }: Props) {
     pickedSongId,
     hintUsedThisRound,
     eliminatedOptionId,
-    isAudioPlaying,
     answer,
     hint,
     skip,
     next,
-    replaySnippet,
     reset,
     error,
   } = engine
@@ -89,20 +88,8 @@ export function GameScreen({ engine, onQuit }: Props) {
         <TimerBar timeLeft={timeLeft} total={config.timePerRound} />
       </div>
 
-      {/* Now playing */}
-      <div className="mb-8 flex flex-col items-center rounded-3xl border border-border bg-surface/70 py-10">
-        <EqualizerBars active={isAudioPlaying && !revealed} className="mb-5 h-12" />
-        <div className="text-sm font-semibold text-muted">Одоо тоглож байна…</div>
-        <div className="mt-1 text-xs text-muted-2">Дуунаас хэсэг сонсоод нэрийг нь таа</div>
-        {!revealed && (
-          <button
-            onClick={replaySnippet}
-            className="mt-5 rounded-full border border-border px-4 py-2 text-sm text-ink-soft hover:border-cyan/60"
-          >
-            ↻ Дахин сонсох
-          </button>
-        )}
-      </div>
+      {/* Media (audio / video / image) */}
+      <MediaStage item={round.answer} revealed={revealed} />
 
       {/* Options */}
       <div className="grid gap-3 sm:grid-cols-2">

@@ -1,0 +1,30 @@
+{
+  "artist": { "name": "Монгол кино", "slug": "mongol-movies", "category": "movie" },
+  "defaults": { "duration": 12 },
+  "songs": [
+    {
+      "title": "REPLACE — киноны нэр",
+      "slug": "movie-1",
+      "youtubeUrl": "https://youtu.be/REPLACE_ME",
+      "start": 60
+    },
+    {
+      "title": "REPLACE — киноны нэр",
+      "slug": "movie-2",
+      "youtubeUrl": "https://youtu.be/REPLACE_ME",
+      "start": 75
+    },
+    {
+      "title": "REPLACE — киноны нэр",
+      "slug": "movie-3",
+      "youtubeUrl": "https://youtu.be/REPLACE_ME",
+      "start": 90
+    },
+    {
+      "title": "REPLACE — киноны нэр",
+      "slug": "movie-4",
+      "youtubeUrl": "https://youtu.be/REPLACE_ME",
+      "start": 45
+    }
+  ]
+}

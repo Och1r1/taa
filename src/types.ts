@@ -4,20 +4,30 @@ export interface Artist {
   slug: string
 }
 
-/** An artist as shown in the home-screen picker, with how many songs it has. */
+/** What kind of media an item is presented as. */
+export type MediaType = 'audio' | 'video' | 'image'
+
+/** A content category. Song/cartoon are audio; movie is video; actor is image. */
+export type Category = 'song' | 'cartoon' | 'movie' | 'actor'
+
+/** A pack (artist / collection) as shown in the home-screen picker. */
 export interface ArtistOption {
   id: string
   name: string
   slug: string
+  category: Category
   songCount: number
 }
 
+/** One playable item: a song, a movie clip, an actor photo, etc. */
 export interface Song {
   id: string
   artistId: string
   title: string
-  /** Fully-resolved public URL to the audio file in Supabase Storage. */
-  audioUrl: string
+  mediaType: MediaType
+  /** Fully-resolved public URL to the media file in Supabase Storage. */
+  mediaUrl: string
+  /** Start/length of the played segment (seconds). Used for audio + video. */
   snippetStart: number
   snippetDuration: number
 }

@@ -70,6 +70,22 @@ npm run ingest -- --force            # re-download songs that already exist
 It's idempotent — songs already in the DB are skipped unless `--force`. `snippet_start` is `0`
 because the stored file *is* the snippet, so no app changes are needed.
 
+### Categories & media types (movies, actors)
+
+Run `supabase/media.sql` once to enable categories. A pack (`artist`) carries a `category`
+(`song` | `cartoon` | `movie` | `actor`) and each item a `media_type` (`audio` | `video` | `image`,
+inferred from the category). The same pipeline handles all three:
+
+- **Songs / cartoons** → 15s **audio** clip (mp3, ~200 KB).
+- **Movies** → short **video** clip (≤360p h264 mp4, ~0.5–1.5 MB) via YouTube. See `scripts/movies.json`.
+- **Actors** → an **image**: give an `imageUrl` (downloaded as jpg), or a `youtubeUrl` + `start`
+  and a single frame is extracted with ffmpeg. See `scripts/actors.json`.
+
+```bash
+npm run ingest -- scripts/movies.json   # video clips → Кино category
+npm run ingest -- scripts/actors.json   # photos → Жүжигчин category
+```
+
 ## How it works
 
 - `src/game/useGameEngine.ts` — the game state machine (idle → playing → revealed → gameover),

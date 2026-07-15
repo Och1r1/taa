@@ -22,7 +22,7 @@
  * System prerequisites: `yt-dlp` and `ffmpeg` on PATH (brew install yt-dlp ffmpeg).
  */
 
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -112,33 +112,77 @@ async function ytVideoDurationSeconds(videoId) {
   return iso ? iso8601ToSeconds(iso) : null
 }
 
-/** Download only [start, start+duration] of a video as an mp3; returns the file path. */
-async function downloadClip(videoId, start, duration, outBase) {
-  const end = start + duration
-  const outTemplate = `${outBase}.%(ext)s`
-  const url = `https://www.youtube.com/watch?v=${videoId}`
+const YT = (videoId) => `https://www.youtube.com/watch?v=${videoId}`
+
+/** Download only [start, start+duration] of a video as a 128k mp3. */
+async function downloadAudioClip(videoId, start, duration, outBase) {
   await execFileAsync(
     'yt-dlp',
     [
-      '--quiet',
-      '--no-warnings',
-      '-x',
-      '--audio-format',
-      'mp3',
-      '--audio-quality',
-      '128K',
-      '--download-sections',
-      `*${start}-${end}`,
+      '--quiet', '--no-warnings',
+      '-x', '--audio-format', 'mp3', '--audio-quality', '128K',
+      '--download-sections', `*${start}-${start + duration}`,
       '--force-keyframes-at-cuts',
-      '-o',
-      outTemplate,
-      url,
+      '-o', `${outBase}.%(ext)s`,
+      YT(videoId),
     ],
     { maxBuffer: 1024 * 1024 * 64 },
   )
-  const mp3Path = `${outBase}.mp3`
-  if (!existsSync(mp3Path)) die(`yt-dlp did not produce ${mp3Path}`)
-  return mp3Path
+  const out = `${outBase}.mp3`
+  if (!existsSync(out)) die(`yt-dlp did not produce ${out}`)
+  return out
+}
+
+/** Download only [start, start+duration] of a video as a ≤360p h264 mp4. */
+async function downloadVideoClip(videoId, start, duration, outBase) {
+  await execFileAsync(
+    'yt-dlp',
+    [
+      '--quiet', '--no-warnings',
+      '-S', 'res:360,codec:h264',
+      '--download-sections', `*${start}-${start + duration}`,
+      '--force-keyframes-at-cuts',
+      '--remux-video', 'mp4', '--merge-output-format', 'mp4',
+      '-o', `${outBase}.%(ext)s`,
+      YT(videoId),
+    ],
+    { maxBuffer: 1024 * 1024 * 128 },
+  )
+  const out = `${outBase}.mp4`
+  if (!existsSync(out)) die(`yt-dlp did not produce ${out}`)
+  return out
+}
+
+/** Download an image from a direct URL and save it as a .jpg. */
+async function downloadImageFromUrl(imageUrl, outBase) {
+  const res = await fetch(imageUrl)
+  if (!res.ok) die(`Image fetch failed (${res.status}) for ${imageUrl}`)
+  const buf = Buffer.from(await res.arrayBuffer())
+  const out = `${outBase}.jpg`
+  await writeFile(out, buf)
+  return out
+}
+
+/** Grab a single frame from a video at `start` as a .jpg (fallback for actors). */
+async function extractFrameFromVideo(videoId, start, outBase) {
+  const clip = await downloadVideoClip(videoId, start, 2, `${outBase}-src`)
+  const out = `${outBase}.jpg`
+  await execFileAsync('ffmpeg', ['-y', '-i', clip, '-frames:v', '1', '-q:v', '3', out])
+  if (!existsSync(out)) die(`ffmpeg did not produce ${out}`)
+  return out
+}
+
+/** Default media type for a category. */
+function mediaForCategory(category) {
+  if (category === 'movie') return 'video'
+  if (category === 'actor') return 'image'
+  return 'audio'
+}
+
+const MEDIA_META = {
+  audio: { ext: 'mp3', contentType: 'audio/mpeg' },
+  video: { ext: 'mp4', contentType: 'video/mp4' },
+  image: { ext: 'jpg', contentType: 'image/jpeg' },
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -168,20 +212,22 @@ async function main() {
     auth: { persistSession: false },
   })
 
-  // Upsert the artist and get its id.
+  const category = artist.category || 'song'
+
+  // Upsert the pack (artist/collection) and get its id.
   const { error: upErr } = await supabase
     .from('artists')
-    .upsert({ name: artist.name, slug: artist.slug }, { onConflict: 'slug' })
-  if (upErr) die(`Failed to upsert artist: ${upErr.message}`)
+    .upsert({ name: artist.name, slug: artist.slug, category }, { onConflict: 'slug' })
+  if (upErr) die(`Failed to upsert pack: ${upErr.message}`)
   const { data: artistRow, error: aErr } = await supabase
     .from('artists')
     .select('id')
     .eq('slug', artist.slug)
     .single()
-  if (aErr || !artistRow) die(`Failed to read artist: ${aErr?.message}`)
+  if (aErr || !artistRow) die(`Failed to read pack: ${aErr?.message}`)
   const artistId = artistRow.id
 
-  log(`\n🎵 Ingesting ${songs.length} song(s) for "${artist.name}" (${artist.slug})\n`)
+  log(`\n🎬 Ingesting ${songs.length} item(s) for "${artist.name}" (${artist.slug}, ${category})\n`)
 
   let added = 0
   let skipped = 0
@@ -201,43 +247,59 @@ async function main() {
         continue
       }
 
-      // Resolve the video.
-      let videoId = extractVideoId(song.videoId || song.youtubeUrl)
-      let resolvedTitle = song.title
-      if (!videoId) {
-        const found = await ytSearchVideoId(song.query || song.title)
-        videoId = found.videoId
-        resolvedTitle = song.title || found.title
-        log(`  🔎  ${label} → video ${videoId}`)
-      }
-
-      // Decide the snippet window.
+      const mediaType = song.mediaType || mediaForCategory(category)
       const duration = song.duration ?? defaults.duration ?? 15
-      let start = song.start
-      if (start == null) {
-        const total = await ytVideoDurationSeconds(videoId)
-        start = total ? Math.floor(total * 0.3) : 30 // ~30% in, skipping the intro
-      }
-
-      // Download only the clip.
-      const slug = slugify(song.slug || song.title) || videoId
+      const slug = slugify(song.slug || song.title) || 'item'
       const outBase = join(tmpdir(), `taa-${artist.slug}-${slug}`)
-      log(`  ⬇   ${label} — clip ${start}s–${start + duration}s @128k`)
-      const mp3Path = await downloadClip(videoId, start, duration, outBase)
+      const { ext, contentType } = MEDIA_META[mediaType]
+
+      let resolvedTitle = song.title
+      let mediaPath
+
+      if (mediaType === 'image' && song.imageUrl) {
+        // Direct image URL — no YouTube needed.
+        log(`  ⬇   ${label} — image`)
+        mediaPath = await downloadImageFromUrl(song.imageUrl, outBase)
+      } else {
+        // Resolve a YouTube video for audio/video, or the actor frame fallback.
+        let videoId = extractVideoId(song.videoId || song.youtubeUrl)
+        if (!videoId) {
+          const found = await ytSearchVideoId(song.query || song.title)
+          videoId = found.videoId
+          resolvedTitle = song.title || found.title
+          log(`  🔎  ${label} → video ${videoId}`)
+        }
+        let start = song.start
+        if (start == null) {
+          const total = await ytVideoDurationSeconds(videoId)
+          start = total ? Math.floor(total * 0.3) : 30 // ~30% in, past the intro
+        }
+        if (mediaType === 'video') {
+          log(`  ⬇   ${label} — video clip ${start}s–${start + duration}s ≤360p`)
+          mediaPath = await downloadVideoClip(videoId, start, duration, outBase)
+        } else if (mediaType === 'image') {
+          log(`  ⬇   ${label} — frame @${start}s`)
+          mediaPath = await extractFrameFromVideo(videoId, start, outBase)
+        } else {
+          log(`  ⬇   ${label} — audio clip ${start}s–${start + duration}s @128k`)
+          mediaPath = await downloadAudioClip(videoId, start, duration, outBase)
+        }
+      }
 
       // Upload to Storage.
-      const objectPath = `${artist.slug}/${slug}.mp3`
-      const bytes = await readFile(mp3Path)
+      const objectPath = `${artist.slug}/${slug}.${ext}`
+      const bytes = await readFile(mediaPath)
       const { error: sErr } = await supabase.storage
         .from(BUCKET)
-        .upload(objectPath, bytes, { contentType: 'audio/mpeg', upsert: true })
+        .upload(objectPath, bytes, { contentType, upsert: true })
       if (sErr) throw new Error(`Storage upload failed: ${sErr.message}`)
 
-      // Insert (or update) the DB row. snippet_start = 0 because the file is the snippet.
+      // Insert (or update) the DB row. snippet_start = 0 because the file is the clip.
       const row = {
         artist_id: artistId,
         title: resolvedTitle,
         audio_path: objectPath,
+        media_type: mediaType,
         snippet_start: 0,
         snippet_duration: duration,
       }

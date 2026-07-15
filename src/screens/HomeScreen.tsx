@@ -4,14 +4,13 @@ import { CategoryCard } from '../components/CategoryCard'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchArtists } from '../api/songs'
 import { isSupabaseConfigured } from '../lib/supabase'
-import type { ArtistOption, GameConfig } from '../types'
+import type { ArtistOption, Category, GameConfig } from '../types'
 
 interface Props {
   onStart: (slug: string, config: GameConfig) => void
-  onOpenLeaderboard: () => void
 }
 
-const MIN_SONGS = 4 // need at least 4 songs to fill the answer options
+const MIN_SONGS = 4 // need at least 4 items to fill the answer options
 const MAX_POINTS = 1000
 
 const ROUND_OPTIONS = [3, 5, 10]
@@ -20,14 +19,22 @@ const TIME_OPTIONS = [10, 15, 20, 30]
 const CATEGORIES = [
   { key: 'song', icon: '🎵', title: 'Дуу', subtitle: 'Дууг сонсоод таа', accent: '#ec4899', active: true },
   { key: 'cartoon', icon: '📺', title: 'Хүүхэлдэйн кино', subtitle: 'Дуугаар нь таа', accent: '#22d3ee', active: false },
-  { key: 'movie', icon: '🎬', title: 'Кино', subtitle: 'Хэсгээр нь таа', accent: '#a855f7', active: false },
+  { key: 'movie', icon: '🎬', title: 'Кино', subtitle: 'Хэсгээр нь таа', accent: '#a855f7', active: true },
   { key: 'tv', icon: '🎭', title: 'ТВ шоу', subtitle: 'Хараад таа', accent: '#f59e0b', active: false },
-  { key: 'actor', icon: '⭐', title: 'Жүжигчин', subtitle: 'Нэрийг нь таа', accent: '#6366f1', active: false },
+  { key: 'actor', icon: '⭐', title: 'Жүжигчин', subtitle: 'Нэрийг нь таа', accent: '#6366f1', active: true },
   { key: 'web', icon: '💻', title: 'Веб цуврал', subtitle: 'Таньж таа', accent: '#34d399', active: false },
 ]
 
-export function HomeScreen({ onStart, onOpenLeaderboard }: Props) {
-  const [selectedCategory, setSelectedCategory] = useState('song')
+/** Per-category wording for the pack picker. */
+const CATEGORY_META: Record<Category, { picker: string; noun: string; empty: string }> = {
+  song: { picker: 'Уран бүтээлч', noun: 'дуу', empty: 'Уран бүтээлч алга байна.' },
+  cartoon: { picker: 'Цуврал', noun: 'кино', empty: 'Цуврал алга байна.' },
+  movie: { picker: 'Цуглуулга', noun: 'кино', empty: 'Кино алга байна.' },
+  actor: { picker: 'Цуглуулга', noun: 'хүн', empty: 'Жүжигчин алга байна.' },
+}
+
+export function HomeScreen({ onStart }: Props) {
+  const [selectedCategory, setSelectedCategory] = useState<Category>('song')
   const [mode, setMode] = useState<'solo' | 'multi'>('solo')
 
   const [artists, setArtists] = useState<ArtistOption[]>([])
@@ -38,17 +45,20 @@ export function HomeScreen({ onStart, onOpenLeaderboard }: Props) {
   const [rounds, setRounds] = useState(5)
   const [timePerRound, setTimePerRound] = useState(15)
 
+  // Load packs for the selected category (re-runs when the category changes).
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setLoadingArtists(false)
       return
     }
     let cancelled = false
-    fetchArtists()
+    setLoadingArtists(true)
+    setArtistError(null)
+    fetchArtists(selectedCategory)
       .then((list) => {
         if (cancelled) return
         setArtists(list)
-        // Default to the first artist that has enough songs to play.
+        // Default to the first pack that has enough items to play.
         const firstPlayable = list.find((a) => a.songCount >= MIN_SONGS)
         setSelectedArtist(firstPlayable?.slug ?? null)
       })
@@ -57,22 +67,14 @@ export function HomeScreen({ onStart, onOpenLeaderboard }: Props) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [selectedCategory])
 
+  const meta = CATEGORY_META[selectedCategory]
   const selected = artists.find((a) => a.slug === selectedArtist)
   const canStart = Boolean(selected && selected.songCount >= MIN_SONGS)
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-12">
-      {/* Top bar */}
-      <div className="mb-12 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <EqualizerBars className="h-6" />
-          <span className="text-xl font-extrabold tracking-tight">Таа</span>
-        </div>
-        <span className="text-sm text-muted">Guess everything · MN</span>
-      </div>
-
+    <div className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
       {/* Hero */}
       <div className="mb-10 animate-fade-up">
         <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">
@@ -115,26 +117,18 @@ export function HomeScreen({ onStart, onOpenLeaderboard }: Props) {
             accent={c.accent}
             active={c.active}
             selected={selectedCategory === c.key}
-            onSelect={() => setSelectedCategory(c.key)}
+            onSelect={() => setSelectedCategory(c.key as Category)}
           />
         ))}
-        <CategoryCard
-          icon="🏆"
-          title="Тэргүүлэгчид"
-          subtitle="Онооны самбар"
-          accent="#f59e0b"
-          active
-          onSelect={onOpenLeaderboard}
-        />
       </div>
 
-      {/* Artist picker */}
+      {/* Pack picker */}
       <div className="mb-4 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
-        Уран бүтээлч
+        {meta.picker}
       </div>
       {loadingArtists ? (
         <div className="flex items-center gap-3 text-muted">
-          <EqualizerBars className="h-5" /> Уран бүтээлчдийг ачааллаж байна…
+          <EqualizerBars className="h-5" /> Ачааллаж байна…
         </div>
       ) : artistError ? (
         <p className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
@@ -142,7 +136,7 @@ export function HomeScreen({ onStart, onOpenLeaderboard }: Props) {
         </p>
       ) : artists.length === 0 ? (
         <p className="rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
-          Уран бүтээлч алга байна. <code>npm run ingest</code> ажиллуулж дуу нэмнэ үү.
+          {meta.empty} <code>npm run ingest</code> ажиллуулж нэмнэ үү.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -163,9 +157,12 @@ export function HomeScreen({ onStart, onOpenLeaderboard }: Props) {
                       : 'cursor-not-allowed border-border/50 bg-surface/40 opacity-60'
                   }`}
               >
-                <span className="text-base font-bold text-ink">{a.name}</span>
+                <span className="text-base font-bold text-ink" style={{ color: '#f2f4f8' }}>
+                  {a.name}
+                </span>
                 <span className="text-xs text-muted">
-                  {a.songCount} дуу{playable ? '' : ` · дор хаяж ${MIN_SONGS} хэрэгтэй`}
+                  {a.songCount} {meta.noun}
+                  {playable ? '' : ` · дор хаяж ${MIN_SONGS} хэрэгтэй`}
                 </span>
               </button>
             )

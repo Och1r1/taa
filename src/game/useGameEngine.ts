@@ -3,7 +3,6 @@ import type { GameConfig, GamePhase, Round, RoundOutcome, RoundResult, Song } fr
 import { fetchSongsByArtistSlug } from '../api/songs'
 import { buildOptions, pickRandom, shuffle } from './shuffle'
 import { computePoints } from './scoring'
-import { useAudioSnippet } from '../audio/useAudioSnippet'
 
 export const DEFAULT_CONFIG: GameConfig = {
   rounds: 5,
@@ -184,25 +183,14 @@ function reducer(state: EngineState, action: Action): EngineState {
 
 export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
   const [state, dispatch] = useReducer(reducer, config, initialState)
-  const { play, stop, isPlaying } = useAudioSnippet()
 
-  // Ticking timer — runs only while a round is in progress.
+  // Ticking timer — runs only while a round is in progress. Media playback is
+  // owned by <MediaStage>, so the engine stays media-agnostic.
   useEffect(() => {
     if (state.phase !== 'playing') return
     const id = setInterval(() => dispatch({ type: 'TICK' }), TICK_MS)
     return () => clearInterval(id)
   }, [state.phase])
-
-  // Play the snippet whenever a new round starts.
-  const roundAnswerId = state.round?.answer.id
-  useEffect(() => {
-    if (state.phase !== 'playing' || !state.round) return
-    const { answer } = state.round
-    void play({ url: answer.audioUrl, start: answer.snippetStart, duration: answer.snippetDuration })
-    // Stop audio when leaving the round.
-    return () => stop()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundAnswerId, state.phase])
 
   const startRef = useRef(false)
   const start = useCallback(async (slug: string, config: GameConfig = DEFAULT_CONFIG) => {
@@ -224,41 +212,20 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
     }
   }, [])
 
-  const answer = useCallback((songId: string) => {
-    stop()
-    dispatch({ type: 'ANSWER', songId })
-  }, [stop])
-
-  const skip = useCallback(() => {
-    stop()
-    dispatch({ type: 'SKIP' })
-  }, [stop])
-
+  const answer = useCallback((songId: string) => dispatch({ type: 'ANSWER', songId }), [])
+  const skip = useCallback(() => dispatch({ type: 'SKIP' }), [])
   const hint = useCallback(() => dispatch({ type: 'HINT' }), [])
-
   const next = useCallback(() => dispatch({ type: 'NEXT' }), [])
-  const reset = useCallback(() => {
-    stop()
-    dispatch({ type: 'RESET' })
-  }, [stop])
-
-  const replaySnippet = useCallback(() => {
-    if (state.phase === 'playing' && state.round) {
-      const { answer: a } = state.round
-      void play({ url: a.audioUrl, start: a.snippetStart, duration: a.snippetDuration })
-    }
-  }, [play, state.phase, state.round])
+  const reset = useCallback(() => dispatch({ type: 'RESET' }), [])
 
   return {
     ...state,
-    isAudioPlaying: isPlaying,
     start,
     answer,
     skip,
     hint,
     next,
     reset,
-    replaySnippet,
   }
 }
 
