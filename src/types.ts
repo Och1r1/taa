@@ -72,6 +72,7 @@ export interface ScoreEntry {
   id: string
   playerName: string
   artistSlug: string
+  category: Category
   points: number
   correctCount: number
   rounds: number

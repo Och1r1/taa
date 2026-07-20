@@ -12,15 +12,17 @@ export default function App() {
 
   if (engine.phase === 'gameover') {
     const lastSlug = engine.artistSlug
+    const lastCategory = engine.category
     const lastConfig = engine.config
     return (
       <ResultsScreen
         score={engine.score}
         results={engine.results}
         artistSlug={lastSlug}
+        category={lastCategory}
         onPlayAgain={() => {
           engine.reset()
-          if (lastSlug) void engine.start(lastSlug, lastConfig)
+          if (lastSlug && lastCategory) void engine.start(lastSlug, lastCategory, lastConfig)
         }}
         onHome={engine.reset}
       />
@@ -34,7 +36,7 @@ export default function App() {
         {view === 'leaderboard' ? (
           <LeaderboardScreen />
         ) : (
-          <HomeScreen onStart={(slug, config) => void engine.start(slug, config)} />
+          <HomeScreen onStart={(slug, category, config) => void engine.start(slug, category, config)} />
         )}
       </div>
     )

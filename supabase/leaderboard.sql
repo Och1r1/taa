@@ -6,6 +6,7 @@ create table if not exists public.scores (
   id            uuid primary key default gen_random_uuid(),
   player_name   text not null check (char_length(player_name) between 1 and 24),
   artist_slug   text not null,
+  category      text not null default 'song' check (category in ('song', 'cartoon', 'movie', 'actor')),
   points        integer not null check (points >= 0),
   correct_count integer not null default 0 check (correct_count >= 0),
   rounds        integer not null default 0 check (rounds >= 0),
@@ -15,6 +16,10 @@ create table if not exists public.scores (
 -- Fast "top scores for this artist" reads.
 create index if not exists scores_artist_points_idx
   on public.scores (artist_slug, points desc);
+
+-- Fast category leaderboard reads across every pack.
+create index if not exists scores_category_points_idx
+  on public.scores (category, points desc, created_at asc);
 
 -- ── Row Level Security ──────────────────────────────────────────────────────
 -- Public game with no accounts: anyone may read the board and submit a score.

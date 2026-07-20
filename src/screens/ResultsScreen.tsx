@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { RoundResult, ScoreEntry } from '../types'
+import type { Category, RoundResult, ScoreEntry } from '../types'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchTopScores, saveScore } from '../api/scores'
@@ -9,13 +9,14 @@ interface Props {
   score: number
   results: RoundResult[]
   artistSlug: string | null
+  category: Category | null
   onPlayAgain: () => void
   onHome: () => void
 }
 
 const NAME_KEY = 'taa_player_name'
 
-export function ResultsScreen({ score, results, artistSlug, onPlayAgain, onHome }: Props) {
+export function ResultsScreen({ score, results, artistSlug, category, onPlayAgain, onHome }: Props) {
   const correctCount = results.filter((r) => r.correct).length
   const maxScore = results.length * 1000
 
@@ -27,7 +28,7 @@ export function ResultsScreen({ score, results, artistSlug, onPlayAgain, onHome 
   const [scores, setScores] = useState<ScoreEntry[]>([])
   const [loadingScores, setLoadingScores] = useState(true)
 
-  const canUseLeaderboard = isSupabaseConfigured && Boolean(artistSlug)
+  const canUseLeaderboard = isSupabaseConfigured && Boolean(artistSlug && category)
 
   useEffect(() => {
     if (!canUseLeaderboard || !artistSlug) {
@@ -45,13 +46,14 @@ export function ResultsScreen({ score, results, artistSlug, onPlayAgain, onHome 
   }, [artistSlug, canUseLeaderboard])
 
   async function handleSave() {
-    if (!artistSlug || !name.trim() || saving) return
+    if (!artistSlug || !category || !name.trim() || saving) return
     setSaving(true)
     setSaveError(null)
     try {
       const entry = await saveScore({
         playerName: name.trim(),
         artistSlug,
+        category,
         points: score,
         correctCount,
         rounds: results.length,

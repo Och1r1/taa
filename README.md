@@ -30,6 +30,8 @@ npm run dev                  # http://localhost:5173
      to match the files you actually uploaded** before running.
    - `supabase/leaderboard.sql` — creates the `scores` table + policies for the persistent
      leaderboard (Онооны самбар). Safe to run once; no editing needed.
+   - `supabase/category-leaderboard.sql` — adds category-specific leaderboard support and
+     backfills existing scores. Run this after `media.sql` for an existing project.
 
 That's it — reload the app and start a game.
 

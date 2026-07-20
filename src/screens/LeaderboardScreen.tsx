@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
-import type { ScoreEntry } from '../types'
+import type { Category, ScoreEntry } from '../types'
 import { EqualizerBars } from '../components/EqualizerBars'
-import { fetchGlobalTopScores } from '../api/scores'
+import { fetchTopScoresForCategory } from '../api/scores'
 import { isSupabaseConfigured } from '../lib/supabase'
 
 const RANK = ['🥇', '🥈', '🥉']
+
+const CATEGORIES: { key: Category; label: string; icon: string }[] = [
+  { key: 'song', label: 'Дуу', icon: '🎵' },
+  { key: 'cartoon', label: 'Хүүхэлдэйн кино', icon: '📺' },
+  { key: 'movie', label: 'Кино', icon: '🎬' },
+  { key: 'actor', label: 'Жүжигчин', icon: '⭐' },
+]
 
 /** Capitalize an artist slug for display (e.g. "morningstar" → "Morningstar"). */
 function prettyArtist(slug: string): string {
@@ -12,6 +19,7 @@ function prettyArtist(slug: string): string {
 }
 
 export function LeaderboardScreen() {
+  const [category, setCategory] = useState<Category>('song')
   const [scores, setScores] = useState<ScoreEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,14 +30,18 @@ export function LeaderboardScreen() {
       return
     }
     let cancelled = false
-    fetchGlobalTopScores()
+    setLoading(true)
+    setError(null)
+    fetchTopScoresForCategory(category)
       .then((list) => !cancelled && setScores(list))
       .catch((err) => !cancelled && setError(err.message))
       .finally(() => !cancelled && setLoading(false))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [category])
+
+  const selectedCategory = CATEGORIES.find((item) => item.key === category)!
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 pb-16 pt-10">
@@ -38,7 +50,26 @@ export function LeaderboardScreen() {
         <h1 className="text-4xl font-extrabold leading-tight">
           🏆 <span className="text-amber">Тэргүүлэгчид</span>
         </h1>
-        <p className="mt-2 text-muted">Бүх уран бүтээлчээр хамгийн өндөр оноо авсан тоглогчид.</p>
+        <p className="mt-2 text-muted">Ангилал бүрийн хамгийн өндөр оноо авсан тоглогчид.</p>
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-2" aria-label="Ангилал сонгох">
+        {CATEGORIES.map((item) => {
+          const selected = item.key === category
+          return (
+            <button
+              key={item.key}
+              onClick={() => setCategory(item.key)}
+              className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
+                selected
+                  ? 'border-cyan/60 bg-cyan/10 text-ink'
+                  : 'border-border bg-surface text-muted hover:bg-raised hover:text-ink'
+              }`}
+            >
+              {item.icon} {item.label}
+            </button>
+          )
+        })}
       </div>
 
       {!isSupabaseConfigured ? (
@@ -55,7 +86,7 @@ export function LeaderboardScreen() {
         </p>
       ) : scores.length === 0 ? (
         <p className="rounded-xl border border-border bg-surface px-4 py-6 text-center text-muted">
-          Одоохондоо оноо алга. Тоглоод эхний тэргүүлэгч бол! 🎵
+          {selectedCategory.label} ангилалд оноо алга. Тоглоод эхний тэргүүлэгч бол! {selectedCategory.icon}
         </p>
       ) : (
         <div className="space-y-2">

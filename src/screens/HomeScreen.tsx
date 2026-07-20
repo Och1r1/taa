@@ -7,7 +7,7 @@ import { isSupabaseConfigured } from '../lib/supabase'
 import type { ArtistOption, Category, GameConfig } from '../types'
 
 interface Props {
-  onStart: (slug: string, config: GameConfig) => void
+  onStart: (slug: string, category: Category, config: GameConfig) => void
 }
 
 const MIN_SONGS = 4 // need at least 4 items to fill the answer options
@@ -202,7 +202,7 @@ export function HomeScreen({ onStart }: Props) {
         <Button
           onClick={() =>
             selectedArtist &&
-            onStart(selectedArtist, { rounds, timePerRound, maxPoints: MAX_POINTS })
+            onStart(selectedArtist, selectedCategory, { rounds, timePerRound, maxPoints: MAX_POINTS })
           }
           disabled={!canStart}
           className="w-full py-4 text-base sm:w-auto sm:px-12"

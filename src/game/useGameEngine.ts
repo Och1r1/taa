@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
-import type { GameConfig, GamePhase, Round, RoundOutcome, RoundResult, Song } from '../types'
+import type { Category, GameConfig, GamePhase, Round, RoundOutcome, RoundResult, Song } from '../types'
 import { fetchSongsByArtistSlug } from '../api/songs'
 import { buildOptions, pickRandom, shuffle } from './shuffle'
 import { computePoints } from './scoring'
@@ -17,6 +17,7 @@ interface EngineState {
   phase: GamePhase
   config: GameConfig
   artistSlug: string | null
+  category: Category | null
   pool: Song[]
   usedIds: string[]
   round: Round | null
@@ -32,7 +33,7 @@ interface EngineState {
 }
 
 type Action =
-  | { type: 'LOADING'; slug: string; config: GameConfig }
+  | { type: 'LOADING'; slug: string; category: Category; config: GameConfig }
   | { type: 'LOADED'; pool: Song[] }
   | { type: 'TICK' }
   | { type: 'ANSWER'; songId: string | null }
@@ -47,6 +48,7 @@ function initialState(config: GameConfig): EngineState {
     phase: 'idle',
     config,
     artistSlug: null,
+    category: null,
     pool: [],
     usedIds: [],
     round: null,
@@ -111,7 +113,12 @@ function reveal(
 function reducer(state: EngineState, action: Action): EngineState {
   switch (action.type) {
     case 'LOADING':
-      return { ...initialState(action.config), phase: 'loading', artistSlug: action.slug }
+      return {
+        ...initialState(action.config),
+        phase: 'loading',
+        artistSlug: action.slug,
+        category: action.category,
+      }
 
     case 'LOADED': {
       const { round, answer } = makeRound(action.pool, [])
@@ -119,6 +126,7 @@ function reducer(state: EngineState, action: Action): EngineState {
         ...initialState(state.config),
         phase: 'playing',
         artistSlug: state.artistSlug,
+        category: state.category,
         pool: action.pool,
         usedIds: [answer.id],
         round,
@@ -193,10 +201,14 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
   }, [state.phase])
 
   const startRef = useRef(false)
-  const start = useCallback(async (slug: string, config: GameConfig = DEFAULT_CONFIG) => {
+  const start = useCallback(async (
+    slug: string,
+    category: Category,
+    config: GameConfig = DEFAULT_CONFIG,
+  ) => {
     if (startRef.current) return
     startRef.current = true
-    dispatch({ type: 'LOADING', slug, config })
+    dispatch({ type: 'LOADING', slug, category, config })
     try {
       const pool = await fetchSongsByArtistSlug(slug)
       if (pool.length < 4) {
