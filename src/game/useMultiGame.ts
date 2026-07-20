@@ -98,17 +98,28 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
   const usedIdsRef = useRef<string[]>([])
   const revealingRef = useRef(false)
   const advancingRef = useRef(false)
-  const countdownPublishRef = useRef(false)
+  // A countdown can trigger many renders while its clock sits at zero. Keep the
+  // deadline that has already published a round, rather than unlocking after a
+  // short timeout, so one countdown can only ever publish one round.
+  const publishedCountdownRef = useRef<string | null>(null)
   const roomRef = useRef<GameRoom | null>(null)
   const roundRef = useRef<RoomRound | null>(null)
   const answersRef = useRef<RoomAnswer[]>([])
+  const roundRequestRef = useRef(0)
   const sawLobbyRef = useRef(false)
 
   roomRef.current = room
   roundRef.current = round
   answersRef.current = answers
 
-  const myAnswer = answers.find((a) => a.playerId === session.playerId) ?? null
+  // Answers are round-scoped. Never let a previous round's answer disable or
+  // colour controls in the newly published round.
+  const myAnswer = round
+    ? answers.find(
+        (answer) =>
+          answer.playerId === session.playerId && answer.roundIndex === round.roundIndex,
+      ) ?? null
+    : null
 
   const refreshPlayers = useCallback(async () => {
     const list = await fetchRoomPlayers(session.roomId)
@@ -118,10 +129,15 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
 
   const refreshRoundBundle = useCallback(
     async (roundIndex: number) => {
+      const requestId = ++roundRequestRef.current
+      setAnswers([])
       const [nextRound, nextAnswers] = await Promise.all([
         fetchRoomRound(session.roomId, roundIndex),
         fetchRoundAnswers(session.roomId, roundIndex),
       ])
+      // Realtime updates can arrive out of order. Only the latest requested
+      // round may update the UI.
+      if (requestId !== roundRequestRef.current) return { nextRound, nextAnswers }
       setRound(nextRound)
       setAnswers(nextAnswers)
       return { nextRound, nextAnswers }
@@ -205,7 +221,15 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
         },
         (payload) => {
           if (payload.eventType === 'DELETE') return
-          setRound(toRound(payload.new as Parameters<typeof toRound>[0]))
+          const nextRound = toRound(payload.new as Parameters<typeof toRound>[0])
+          if (roundRef.current?.roundIndex !== nextRound.roundIndex) {
+            setAnswers([])
+            // Load the matching answers as one bundle; the room and round
+            // change events are delivered independently and may arrive in
+            // either order.
+            void refreshRoundBundle(nextRound.roundIndex)
+          }
+          setRound(nextRound)
         },
       )
       .on(
@@ -219,7 +243,9 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
         () => {
           const idx = roomRef.current?.currentRoundIndex
           if (idx == null) return
-          void fetchRoundAnswers(session.roomId, idx).then(setAnswers)
+          void fetchRoundAnswers(session.roomId, idx).then((nextAnswers) => {
+            if (roomRef.current?.currentRoundIndex === idx) setAnswers(nextAnswers)
+          })
         },
       )
       .subscribe()
@@ -308,7 +334,14 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       const currentRoom = roomRef.current
       if (!current || !currentRoom || current.status !== 'active') return
       if (currentRoom.status !== 'playing') return
-      if (answersRef.current.some((a) => a.playerId === session.playerId)) return
+      if (
+        answersRef.current.some(
+          (answer) =>
+            answer.playerId === session.playerId && answer.roundIndex === current.roundIndex,
+        )
+      ) {
+        return
+      }
       setAnswerError(null)
       try {
         const saved = await submitRoomAnswer(
@@ -333,9 +366,16 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     if (!session.isHost || !session.hostToken) return
     if (!room || room.status !== 'playing' || !round || round.status !== 'active') return
 
+    // The host is the stage controller, not an answer pad. Counting the host
+    // here can make a room advance based on stale/host answers.
+    const answeringPlayers = players.filter((player) => !player.isHost)
     const allAnswered =
-      players.length > 0 &&
-      players.every((p) => answers.some((a) => a.playerId === p.id))
+      answeringPlayers.length > 0 &&
+      answeringPlayers.every((player) =>
+        answers.some(
+          (answer) => answer.playerId === player.id && answer.roundIndex === round.roundIndex,
+        ),
+      )
     const timedOut = timeLeft <= 0 && Date.now() >= new Date(round.endsAt).getTime()
     if (!allAnswered && !timedOut) return
     if (revealingRef.current) return
@@ -393,17 +433,8 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     if (!session.isHost || !session.hostToken) return
     if (!room || room.status !== 'countdown' || !room.countdownEndsAt) return
     if (countdownLeft > 0.05) return
-    if (countdownPublishRef.current) return
-    countdownPublishRef.current = true
-
-    // First game start: no revealed round yet → index 0.
-    // After reveal of round N (currentRoundIndex = N) → index N+1.
-    const toPublish =
-      round != null && round.status === 'revealed' && round.roundIndex === room.currentRoundIndex
-        ? room.currentRoundIndex + 1
-        : usedIdsRef.current.length > 0 && round?.roundIndex === room.currentRoundIndex
-          ? room.currentRoundIndex + 1
-          : 0
+    if (publishedCountdownRef.current === room.countdownEndsAt) return
+    publishedCountdownRef.current = room.countdownEndsAt
 
     void (async () => {
       try {
@@ -420,25 +451,18 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
             (row: { answer_song_id: string }) => row.answer_song_id,
           )
         }
-        const index =
-          usedIdsRef.current.length === 0 && (round == null || round.status !== 'revealed')
-            ? 0
-            : room.currentRoundIndex + (round?.status === 'revealed' ? 1 : 0)
         // Prefer: number of existing rounds == next index when continuing.
         const existingCount = usedIdsRef.current.length
         const publishIndex =
           round?.status === 'revealed' ? room.currentRoundIndex + 1 : existingCount === 0 ? 0 : existingCount
-
-        void toPublish
-        void index
         await publishRound(publishIndex)
       } catch (err) {
+        // Keep this countdown retryable if the RPC failed before it changed the
+        // room state. A successful publish changes status to `playing`.
+        if (publishedCountdownRef.current === room.countdownEndsAt) {
+          publishedCountdownRef.current = null
+        }
         setError(err instanceof Error ? err.message : 'Раунд эхлүүлж чадсангүй')
-      } finally {
-        // Allow a later countdown to publish again.
-        window.setTimeout(() => {
-          countdownPublishRef.current = false
-        }, 1500)
       }
     })()
   }, [
