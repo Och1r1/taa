@@ -32,8 +32,21 @@ npm run dev                  # http://localhost:5173
      leaderboard (Онооны самбар). Safe to run once; no editing needed.
    - `supabase/category-leaderboard.sql` — adds category-specific leaderboard support and
      backfills existing scores. Run this after `media.sql` for an existing project.
+   - `supabase/category-catalog.sql` — creates the active-category catalog used by the
+     leaderboard. Run this after `media.sql` and `category-leaderboard.sql`.
 
 That's it — reload the app and start a game.
+
+### Adding a category
+
+Categories are data-driven. Add a row to `categories`, then create one or more matching packs in
+`artists` and media items in `songs`; the Home screen and leaderboard will show it automatically.
+Set `media_type` to `audio`, `video`, or `image` so all items in its packs use the correct format.
+
+```sql
+insert into categories (slug, name, icon, subtitle, accent, display_order, media_type)
+values ('web-series', 'Веб цуврал', '💻', 'Хэсгээр нь таа', '#34d399', 50, 'video');
+```
 
 ## Adding songs (automated ingestion)
 

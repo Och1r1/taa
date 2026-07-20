@@ -7,8 +7,21 @@ export interface Artist {
 /** What kind of media an item is presented as. */
 export type MediaType = 'audio' | 'video' | 'image'
 
-/** A content category. Song/cartoon are audio; movie is video; actor is image. */
-export type Category = 'song' | 'cartoon' | 'movie' | 'actor'
+/** A data-driven content-category slug, such as `song`, `movie`, or a future game type. */
+export type Category = string
+
+/** One selectable category from the public category catalog. */
+export interface LeaderboardCategory {
+  slug: Category
+  name: string
+  icon: string
+  displayOrder: number
+  subtitle: string
+  accent: string
+  pickerLabel: string
+  itemLabel: string
+  emptyMessage: string
+}
 
 /** A pack (artist / collection) as shown in the home-screen picker. */
 export interface ArtistOption {

@@ -8,7 +8,16 @@ import { Header, type NavView } from './components/Header'
 
 export default function App() {
   const engine = useGameEngine()
-  const [view, setView] = useState<NavView>('home')
+  const [view, setView] = useState<NavView>(() =>
+    new URLSearchParams(window.location.search).has('category') ? 'leaderboard' : 'home',
+  )
+
+  function navigate(view: NavView) {
+    setView(view)
+    const url = new URL(window.location.href)
+    if (view === 'home') url.searchParams.delete('category')
+    window.history.pushState({}, '', url)
+  }
 
   if (engine.phase === 'gameover') {
     const lastSlug = engine.artistSlug
@@ -32,7 +41,7 @@ export default function App() {
   if (engine.phase === 'idle') {
     return (
       <div>
-        <Header active={view} onNavigate={setView} />
+        <Header active={view} onNavigate={navigate} />
         {view === 'leaderboard' ? (
           <LeaderboardScreen />
         ) : (

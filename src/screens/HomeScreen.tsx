@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Button } from '../components/Button'
 import { CategoryCard } from '../components/CategoryCard'
 import { EqualizerBars } from '../components/EqualizerBars'
+import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
 import { isSupabaseConfigured } from '../lib/supabase'
-import type { ArtistOption, Category, GameConfig } from '../types'
+import type { ArtistOption, Category, GameConfig, LeaderboardCategory } from '../types'
 
 interface Props {
   onStart: (slug: string, category: Category, config: GameConfig) => void
@@ -15,26 +16,15 @@ const MAX_POINTS = 1000
 
 const ROUND_OPTIONS = [3, 5, 10]
 const TIME_OPTIONS = [10, 15, 20, 30]
-
-const CATEGORIES = [
-  { key: 'song', icon: '🎵', title: 'Дуу', subtitle: 'Дууг сонсоод таа', accent: '#ec4899', active: true },
-  { key: 'cartoon', icon: '📺', title: 'Хүүхэлдэйн кино', subtitle: 'Дуугаар нь таа', accent: '#22d3ee', active: false },
-  { key: 'movie', icon: '🎬', title: 'Кино', subtitle: 'Хэсгээр нь таа', accent: '#a855f7', active: true },
-  { key: 'tv', icon: '🎭', title: 'ТВ шоу', subtitle: 'Хараад таа', accent: '#f59e0b', active: false },
-  { key: 'actor', icon: '⭐', title: 'Жүжигчин', subtitle: 'Нэрийг нь таа', accent: '#6366f1', active: true },
-  { key: 'web', icon: '💻', title: 'Веб цуврал', subtitle: 'Таньж таа', accent: '#34d399', active: false },
-]
-
-/** Per-category wording for the pack picker. */
-const CATEGORY_META: Record<Category, { picker: string; noun: string; empty: string }> = {
-  song: { picker: 'Уран бүтээлч', noun: 'дуу', empty: 'Уран бүтээлч алга байна.' },
-  cartoon: { picker: 'Цуврал', noun: 'кино', empty: 'Цуврал алга байна.' },
-  movie: { picker: 'Цуглуулга', noun: 'кино', empty: 'Кино алга байна.' },
-  actor: { picker: 'Цуглуулга', noun: 'хүн', empty: 'Жүжигчин алга байна.' },
-}
+const VISIBLE_CATEGORY_COUNT = 6
 
 export function HomeScreen({ onStart }: Props) {
-  const [selectedCategory, setSelectedCategory] = useState<Category>('song')
+  const [categories, setCategories] = useState<LeaderboardCategory[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [loadingCategories, setLoadingCategories] = useState(true)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
+  const [showMoreCategories, setShowMoreCategories] = useState(false)
+  const [categorySearch, setCategorySearch] = useState('')
   const [mode, setMode] = useState<'solo' | 'multi'>('solo')
 
   const [artists, setArtists] = useState<ArtistOption[]>([])
@@ -45,9 +35,28 @@ export function HomeScreen({ onStart }: Props) {
   const [rounds, setRounds] = useState(5)
   const [timePerRound, setTimePerRound] = useState(15)
 
-  // Load packs for the selected category (re-runs when the category changes).
   useEffect(() => {
     if (!isSupabaseConfigured) {
+      setLoadingCategories(false)
+      return
+    }
+    let cancelled = false
+    fetchCategories()
+      .then((list) => {
+        if (cancelled) return
+        setCategories(list)
+        setSelectedCategory(list[0]?.slug ?? null)
+      })
+      .catch((err) => !cancelled && setCategoryError(err.message))
+      .finally(() => !cancelled && setLoadingCategories(false))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Load packs for the selected category (re-runs when the category changes).
+  useEffect(() => {
+    if (!isSupabaseConfigured || !selectedCategory) {
       setLoadingArtists(false)
       return
     }
@@ -69,9 +78,14 @@ export function HomeScreen({ onStart }: Props) {
     }
   }, [selectedCategory])
 
-  const meta = CATEGORY_META[selectedCategory]
+  const selectedCategoryData = categories.find((category) => category.slug === selectedCategory)
+  const visibleCategories = categories.slice(0, VISIBLE_CATEGORY_COUNT)
+  const overflowCategories = categories.slice(VISIBLE_CATEGORY_COUNT)
+  const matchingOverflowCategories = overflowCategories.filter((category) =>
+    `${category.name} ${category.slug}`.toLocaleLowerCase().includes(categorySearch.toLocaleLowerCase()),
+  )
   const selected = artists.find((a) => a.slug === selectedArtist)
-  const canStart = Boolean(selected && selected.songCount >= MIN_SONGS)
+  const canStart = Boolean(selectedCategory && selected && selected.songCount >= MIN_SONGS)
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
@@ -108,23 +122,78 @@ export function HomeScreen({ onStart }: Props) {
       {/* Category grid */}
       <div className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-2">Ангилал</div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {CATEGORIES.map((c) => (
+        {loadingCategories ? (
+          <div className="col-span-full flex items-center gap-3 text-muted">
+            <EqualizerBars className="h-5" /> Ангиллуудыг ачааллаж байна…
+          </div>
+        ) : categoryError ? (
+          <p className="col-span-full rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
+            {categoryError}
+          </p>
+        ) : categories.length === 0 ? (
+          <p className="col-span-full rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
+            Идэвхтэй ангилал алга байна.
+          </p>
+        ) : visibleCategories.map((category) => (
           <CategoryCard
-            key={c.key}
-            icon={c.icon}
-            title={c.title}
-            subtitle={c.subtitle}
-            accent={c.accent}
-            active={c.active}
-            selected={selectedCategory === c.key}
-            onSelect={() => setSelectedCategory(c.key as Category)}
+            key={category.slug}
+            icon={category.icon}
+            title={category.name}
+            subtitle={category.subtitle}
+            accent={category.accent}
+            active
+            selected={selectedCategory === category.slug}
+            onSelect={() => setSelectedCategory(category.slug)}
           />
         ))}
+        {!loadingCategories && overflowCategories.length > 0 && (
+          <button
+            onClick={() => {
+              setShowMoreCategories((open) => !open)
+              setCategorySearch('')
+            }}
+            className="rounded-2xl border-2 border-border bg-surface p-4 text-left text-sm font-bold text-muted transition hover:bg-raised hover:text-ink"
+            aria-expanded={showMoreCategories}
+          >
+            Бусад ангилал ▾
+          </button>
+        )}
       </div>
+      {showMoreCategories && (
+        <div className="mt-3 rounded-2xl border border-border bg-surface p-3">
+          <input
+            value={categorySearch}
+            onChange={(event) => setCategorySearch(event.target.value)}
+            placeholder="Ангилал хайх"
+            className="mb-3 w-full rounded-xl border border-border bg-base px-3 py-2 text-sm text-ink outline-none placeholder:text-muted-2 focus:border-cyan/60"
+          />
+          <div className="grid max-h-72 grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">
+            {matchingOverflowCategories.map((category) => (
+              <CategoryCard
+                key={category.slug}
+                icon={category.icon}
+                title={category.name}
+                subtitle={category.subtitle}
+                accent={category.accent}
+                active
+                selected={selectedCategory === category.slug}
+                onSelect={() => {
+                  setSelectedCategory(category.slug)
+                  setShowMoreCategories(false)
+                  setCategorySearch('')
+                }}
+              />
+            ))}
+            {matchingOverflowCategories.length === 0 && (
+              <p className="col-span-full px-2 py-3 text-sm text-muted">Ангилал олдсонгүй.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Pack picker */}
       <div className="mb-4 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
-        {meta.picker}
+        {selectedCategoryData?.pickerLabel ?? 'Багц'}
       </div>
       {loadingArtists ? (
         <div className="flex items-center gap-3 text-muted">
@@ -136,7 +205,8 @@ export function HomeScreen({ onStart }: Props) {
         </p>
       ) : artists.length === 0 ? (
         <p className="rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
-          {meta.empty} <code>npm run ingest</code> ажиллуулж нэмнэ үү.
+          {selectedCategoryData?.emptyMessage ?? 'Багц алга байна.'} <code>npm run ingest</code>{' '}
+          ажиллуулж нэмнэ үү.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -161,7 +231,7 @@ export function HomeScreen({ onStart }: Props) {
                   {a.name}
                 </span>
                 <span className="text-xs text-muted">
-                  {a.songCount} {meta.noun}
+                  {a.songCount} {selectedCategoryData?.itemLabel ?? 'асуулт'}
                   {playable ? '' : ` · дор хаяж ${MIN_SONGS} хэрэгтэй`}
                 </span>
               </button>
@@ -202,6 +272,7 @@ export function HomeScreen({ onStart }: Props) {
         <Button
           onClick={() =>
             selectedArtist &&
+            selectedCategory &&
             onStart(selectedArtist, selectedCategory, { rounds, timePerRound, maxPoints: MAX_POINTS })
           }
           disabled={!canStart}

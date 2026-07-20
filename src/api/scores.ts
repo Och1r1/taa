@@ -21,6 +21,11 @@ interface SaveScoreInput {
   rounds: number
 }
 
+export interface ScorePage {
+  entries: ScoreEntry[]
+  hasMore: boolean
+}
+
 /** Insert a finished game's score and return the saved entry. */
 export async function saveScore(input: SaveScoreInput): Promise<ScoreEntry> {
   const { data, error } = await supabase
@@ -54,17 +59,26 @@ export async function fetchTopScores(artistSlug: string, limit = 10): Promise<Sc
   return ((data ?? []) as ScoreRow[]).map(toEntry)
 }
 
-/** Every saved score in one category, highest first. */
-export async function fetchTopScoresForCategory(category: Category): Promise<ScoreEntry[]> {
+/** One ordered page of saved category scores. */
+export async function fetchTopScoresForCategory(
+  category: Category,
+  offset = 0,
+  pageSize = 50,
+): Promise<ScorePage> {
   const { data, error } = await supabase
     .from('scores')
     .select('id, player_name, artist_slug, category, points, correct_count, rounds, created_at')
     .eq('category', category)
     .order('points', { ascending: false })
     .order('created_at', { ascending: true })
+    .range(offset, offset + pageSize)
 
   if (error) throw new Error(`Онооны самбарыг татаж чадсангүй: ${error.message}`)
-  return ((data ?? []) as ScoreRow[]).map(toEntry)
+  const rows = (data ?? []) as ScoreRow[]
+  return {
+    entries: rows.slice(0, pageSize).map(toEntry),
+    hasMore: rows.length > pageSize,
+  }
 }
 
 function toEntry(row: ScoreRow): ScoreEntry {
