@@ -38,6 +38,8 @@ export interface Song {
   artistId: string
   title: string
   mediaType: MediaType
+  /** Storage object path inside the public media bucket. */
+  mediaPath: string
   /** Fully-resolved public URL to the media file in Supabase Storage. */
   mediaUrl: string
   /** Start/length of the played segment (seconds). Used for audio + video. */
@@ -90,4 +92,84 @@ export interface ScoreEntry {
   correctCount: number
   rounds: number
   createdAt: string
+}
+
+/** Lobby / in-progress multiplayer room status. */
+export type RoomStatus = 'lobby' | 'countdown' | 'playing' | 'revealing' | 'finished' | 'closed'
+
+/** Public room row (host_token is never exposed on this shape). */
+export interface GameRoom {
+  id: string
+  pin: string
+  status: RoomStatus
+  hostPlayerId: string | null
+  artistSlug: string
+  category: Category
+  rounds: number
+  timePerRound: number
+  maxPoints: number
+  currentRoundIndex: number
+  createdAt: string
+  expiresAt: string
+  /** When status is countdown, clients count down to this timestamp. */
+  countdownEndsAt: string | null
+}
+
+/** One player seated in a multiplayer room. */
+export interface RoomPlayer {
+  id: string
+  roomId: string
+  nickname: string
+  isHost: boolean
+  score: number
+  correctCount: number
+  joinedAt: string
+  lastSeen: string
+}
+
+/** Local session after create/join — persisted in sessionStorage for refresh. */
+export interface MultiSession {
+  roomId: string
+  pin: string
+  playerId: string
+  nickname: string
+  isHost: boolean
+  /** Only present for the host; required for host-only RPCs later. */
+  hostToken: string | null
+}
+
+/** One option row stored on a multiplayer round (DB snake_case mapped in API). */
+export interface RoomRoundOption {
+  songId: string
+  title: string
+}
+
+/** Synced multiplayer round published by the host. */
+export interface RoomRound {
+  id: string
+  roomId: string
+  roundIndex: number
+  answerSongId: string
+  answerTitle: string
+  options: RoomRoundOption[]
+  mediaType: MediaType
+  mediaPath: string
+  mediaUrl: string
+  snippetStart: number
+  snippetDuration: number
+  status: 'active' | 'revealed'
+  startedAt: string
+  endsAt: string
+}
+
+/** One player's answer for a multiplayer round. */
+export interface RoomAnswer {
+  id: string
+  roomId: string
+  roundIndex: number
+  playerId: string
+  pickedSongId: string | null
+  answeredAt: string
+  points: number
+  outcome: RoundOutcome
 }

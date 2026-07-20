@@ -1,0 +1,504 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  beginRoomCountdown,
+  fetchRoom,
+  fetchRoomPlayers,
+  fetchRoomRound,
+  fetchRoundAnswers,
+  finishRoomGame,
+  revealRoomRound,
+  startRoomRound,
+  submitRoomAnswer,
+  toRound,
+} from '../api/rooms'
+import { fetchSongsByArtistSlug } from '../api/songs'
+import { supabase } from '../lib/supabase'
+import { makeRoundPick } from './roundPick'
+import type {
+  GameRoom,
+  MultiSession,
+  RoomAnswer,
+  RoomPlayer,
+  RoomRound,
+  Song,
+} from '../types'
+
+const REVEAL_HOLD_MS = 4500
+const COUNTDOWN_SECONDS = 3
+
+export interface MultiGameState {
+  room: GameRoom | null
+  players: RoomPlayer[]
+  round: RoomRound | null
+  answers: RoomAnswer[]
+  myAnswer: RoomAnswer | null
+  timeLeft: number
+  countdownLeft: number
+  loading: boolean
+  starting: boolean
+  error: string | null
+  answerError: string | null
+  reconnected: boolean
+}
+
+export interface MultiGameApi extends MultiGameState {
+  startGame: () => Promise<void>
+  answer: (songId: string) => Promise<void>
+  endGame: () => Promise<void>
+  rankedPlayers: RoomPlayer[]
+}
+
+function mapRoomRow(row: {
+  id: string
+  pin: string
+  status: GameRoom['status']
+  host_player_id: string | null
+  artist_slug: string
+  category: string
+  rounds: number
+  time_per_round: number
+  max_points: number
+  current_round_index: number
+  created_at: string
+  expires_at: string
+  countdown_ends_at?: string | null
+}): GameRoom {
+  return {
+    id: row.id,
+    pin: row.pin,
+    status: row.status,
+    hostPlayerId: row.host_player_id,
+    artistSlug: row.artist_slug,
+    category: row.category,
+    rounds: row.rounds,
+    timePerRound: row.time_per_round,
+    maxPoints: row.max_points,
+    currentRoundIndex: row.current_round_index,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    countdownEndsAt: row.countdown_ends_at ?? null,
+  }
+}
+
+/** Shared multiplayer game: Realtime state + host-driven round progression. */
+export function useMultiGame(session: MultiSession): MultiGameApi {
+  const [room, setRoom] = useState<GameRoom | null>(null)
+  const [players, setPlayers] = useState<RoomPlayer[]>([])
+  const [round, setRound] = useState<RoomRound | null>(null)
+  const [answers, setAnswers] = useState<RoomAnswer[]>([])
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [countdownLeft, setCountdownLeft] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [starting, setStarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [answerError, setAnswerError] = useState<string | null>(null)
+  const [reconnected, setReconnected] = useState(false)
+
+  const poolRef = useRef<Song[]>([])
+  const usedIdsRef = useRef<string[]>([])
+  const revealingRef = useRef(false)
+  const advancingRef = useRef(false)
+  const countdownPublishRef = useRef(false)
+  const roomRef = useRef<GameRoom | null>(null)
+  const roundRef = useRef<RoomRound | null>(null)
+  const answersRef = useRef<RoomAnswer[]>([])
+  const sawLobbyRef = useRef(false)
+
+  roomRef.current = room
+  roundRef.current = round
+  answersRef.current = answers
+
+  const myAnswer = answers.find((a) => a.playerId === session.playerId) ?? null
+
+  const refreshPlayers = useCallback(async () => {
+    const list = await fetchRoomPlayers(session.roomId)
+    setPlayers(list)
+    return list
+  }, [session.roomId])
+
+  const refreshRoundBundle = useCallback(
+    async (roundIndex: number) => {
+      const [nextRound, nextAnswers] = await Promise.all([
+        fetchRoomRound(session.roomId, roundIndex),
+        fetchRoundAnswers(session.roomId, roundIndex),
+      ])
+      setRound(nextRound)
+      setAnswers(nextAnswers)
+      return { nextRound, nextAnswers }
+    },
+    [session.roomId],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+
+    async function boot() {
+      try {
+        const nextRoom = await fetchRoom(session.roomId)
+        if (cancelled) return
+        setRoom(nextRoom)
+        if (nextRoom?.status === 'lobby') sawLobbyRef.current = true
+        await refreshPlayers()
+        if (nextRoom && nextRoom.status !== 'lobby' && nextRoom.status !== 'closed') {
+          if (nextRoom.status === 'playing' || nextRoom.status === 'revealing') {
+            await refreshRoundBundle(nextRoom.currentRoundIndex)
+          }
+          // Mid-game refresh (not a fresh start from lobby this mount).
+          if (!sawLobbyRef.current) {
+            setReconnected(true)
+            window.setTimeout(() => setReconnected(false), 3500)
+          }
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Алдаа гарлаа')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void boot()
+
+    const channel = supabase
+      .channel(`room-game-${session.roomId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${session.roomId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setRoom(null)
+            return
+          }
+          const next = mapRoomRow(payload.new as Parameters<typeof mapRoomRow>[0])
+          setRoom(next)
+          if (next.status === 'playing' || next.status === 'revealing') {
+            void refreshRoundBundle(next.currentRoundIndex)
+          }
+          if (next.status === 'revealing' || next.status === 'finished') {
+            void refreshPlayers()
+          }
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_players',
+          filter: `room_id=eq.${session.roomId}`,
+        },
+        () => {
+          void refreshPlayers().then((list) => {
+            if (!list.some((p) => p.id === session.playerId)) {
+              setError('Та өрөөнөөс хасагдсан.')
+            }
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_rounds',
+          filter: `room_id=eq.${session.roomId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') return
+          setRound(toRound(payload.new as Parameters<typeof toRound>[0]))
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_answers',
+          filter: `room_id=eq.${session.roomId}`,
+        },
+        () => {
+          const idx = roomRef.current?.currentRoundIndex
+          if (idx == null) return
+          void fetchRoundAnswers(session.roomId, idx).then(setAnswers)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      void supabase.removeChannel(channel)
+    }
+  }, [session.roomId, session.playerId, refreshPlayers, refreshRoundBundle])
+
+  useEffect(() => {
+    if (!round || round.status !== 'active' || room?.status !== 'playing') {
+      setTimeLeft(0)
+      return
+    }
+    const tick = () => {
+      setTimeLeft(Math.max(0, (new Date(round.endsAt).getTime() - Date.now()) / 1000))
+    }
+    tick()
+    const id = window.setInterval(tick, 100)
+    return () => window.clearInterval(id)
+  }, [round, room?.status])
+
+  useEffect(() => {
+    if (!room || room.status !== 'countdown' || !room.countdownEndsAt) {
+      setCountdownLeft(0)
+      return
+    }
+    const tick = () => {
+      setCountdownLeft(
+        Math.max(0, (new Date(room.countdownEndsAt!).getTime() - Date.now()) / 1000),
+      )
+    }
+    tick()
+    const id = window.setInterval(tick, 100)
+    return () => window.clearInterval(id)
+  }, [room])
+
+  const publishRound = useCallback(
+    async (roundIndex: number) => {
+      if (!session.hostToken) return
+      const pool = poolRef.current
+      if (pool.length < 4) throw new Error('Багцад хангалттай асуулт алга')
+      const { song, options } = makeRoundPick(pool, usedIdsRef.current)
+      usedIdsRef.current = [...usedIdsRef.current, song.id]
+      await startRoomRound({
+        roomId: session.roomId,
+        hostToken: session.hostToken,
+        roundIndex,
+        song,
+        options,
+      })
+    },
+    [session.hostToken, session.roomId],
+  )
+
+  const startGame = useCallback(async () => {
+    if (!session.isHost || !session.hostToken || !room) return
+    setStarting(true)
+    setError(null)
+    try {
+      const pool = await fetchSongsByArtistSlug(room.artistSlug)
+      if (pool.length < 4) throw new Error('Багцад дор хаяж 4 асуулт хэрэгтэй')
+      poolRef.current = pool
+      usedIdsRef.current = []
+      await beginRoomCountdown(session.roomId, session.hostToken, COUNTDOWN_SECONDS)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Эхлүүлж чадсангүй')
+    } finally {
+      setStarting(false)
+    }
+  }, [session.isHost, session.hostToken, session.roomId, room])
+
+  const endGame = useCallback(async () => {
+    if (!session.isHost || !session.hostToken) return
+    try {
+      await finishRoomGame(session.roomId, session.hostToken)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Дуусгаж чадсангүй')
+    }
+  }, [session.isHost, session.hostToken, session.roomId])
+
+  const answer = useCallback(
+    async (songId: string) => {
+      const current = roundRef.current
+      const currentRoom = roomRef.current
+      if (!current || !currentRoom || current.status !== 'active') return
+      if (currentRoom.status !== 'playing') return
+      if (answersRef.current.some((a) => a.playerId === session.playerId)) return
+      setAnswerError(null)
+      try {
+        const saved = await submitRoomAnswer(
+          session.roomId,
+          session.playerId,
+          current.roundIndex,
+          songId,
+        )
+        setAnswers((prev) => {
+          if (prev.some((a) => a.id === saved.id)) return prev
+          return [...prev, saved]
+        })
+      } catch (err) {
+        setAnswerError(err instanceof Error ? err.message : 'Хариулж чадсангүй')
+      }
+    },
+    [session.playerId, session.roomId],
+  )
+
+  // Host: auto-reveal
+  useEffect(() => {
+    if (!session.isHost || !session.hostToken) return
+    if (!room || room.status !== 'playing' || !round || round.status !== 'active') return
+
+    const allAnswered =
+      players.length > 0 &&
+      players.every((p) => answers.some((a) => a.playerId === p.id))
+    const timedOut = timeLeft <= 0 && Date.now() >= new Date(round.endsAt).getTime()
+    if (!allAnswered && !timedOut) return
+    if (revealingRef.current) return
+    revealingRef.current = true
+
+    void revealRoomRound(session.roomId, session.hostToken, round.roundIndex)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => {
+        revealingRef.current = false
+      })
+  }, [
+    session.isHost,
+    session.hostToken,
+    session.roomId,
+    room,
+    round,
+    players,
+    answers,
+    timeLeft,
+  ])
+
+  // Host: reveal hold → countdown or finish
+  useEffect(() => {
+    if (!session.isHost || !session.hostToken) return
+    if (!room || room.status !== 'revealing' || !round || round.status !== 'revealed') return
+    if (advancingRef.current) return
+
+    advancingRef.current = true
+    const hostToken = session.hostToken
+    const roomId = session.roomId
+    const nextIndex = room.currentRoundIndex + 1
+    const total = room.rounds
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          if (nextIndex >= total) await finishRoomGame(roomId, hostToken)
+          else await beginRoomCountdown(roomId, hostToken, COUNTDOWN_SECONDS)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Дараагийн алхам амжилтгүй')
+        } finally {
+          advancingRef.current = false
+        }
+      })()
+    }, REVEAL_HOLD_MS)
+
+    return () => {
+      window.clearTimeout(timer)
+      advancingRef.current = false
+    }
+  }, [session.isHost, session.hostToken, session.roomId, room, round])
+
+  // Host: countdown finished → publish round
+  useEffect(() => {
+    if (!session.isHost || !session.hostToken) return
+    if (!room || room.status !== 'countdown' || !room.countdownEndsAt) return
+    if (countdownLeft > 0.05) return
+    if (countdownPublishRef.current) return
+    countdownPublishRef.current = true
+
+    // First game start: no revealed round yet → index 0.
+    // After reveal of round N (currentRoundIndex = N) → index N+1.
+    const toPublish =
+      round != null && round.status === 'revealed' && round.roundIndex === room.currentRoundIndex
+        ? room.currentRoundIndex + 1
+        : usedIdsRef.current.length > 0 && round?.roundIndex === room.currentRoundIndex
+          ? room.currentRoundIndex + 1
+          : 0
+
+    void (async () => {
+      try {
+        if (poolRef.current.length < 4) {
+          poolRef.current = await fetchSongsByArtistSlug(room.artistSlug)
+        }
+        // If we already have rounds in DB (reconnect), seed used ids before pick.
+        if (usedIdsRef.current.length === 0) {
+          const { data } = await supabase
+            .from('room_rounds')
+            .select('answer_song_id')
+            .eq('room_id', session.roomId)
+          usedIdsRef.current = (data ?? []).map(
+            (row: { answer_song_id: string }) => row.answer_song_id,
+          )
+        }
+        const index =
+          usedIdsRef.current.length === 0 && (round == null || round.status !== 'revealed')
+            ? 0
+            : room.currentRoundIndex + (round?.status === 'revealed' ? 1 : 0)
+        // Prefer: number of existing rounds == next index when continuing.
+        const existingCount = usedIdsRef.current.length
+        const publishIndex =
+          round?.status === 'revealed' ? room.currentRoundIndex + 1 : existingCount === 0 ? 0 : existingCount
+
+        void toPublish
+        void index
+        await publishRound(publishIndex)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Раунд эхлүүлж чадсангүй')
+      } finally {
+        // Allow a later countdown to publish again.
+        window.setTimeout(() => {
+          countdownPublishRef.current = false
+        }, 1500)
+      }
+    })()
+  }, [
+    session.isHost,
+    session.hostToken,
+    session.roomId,
+    room,
+    round,
+    countdownLeft,
+    publishRound,
+  ])
+
+  useEffect(() => {
+    if (!session.isHost || !room) return
+    if (room.status === 'lobby' || room.status === 'closed') return
+
+    let cancelled = false
+    void (async () => {
+      try {
+        if (poolRef.current.length < 4) {
+          poolRef.current = await fetchSongsByArtistSlug(room.artistSlug)
+        }
+        const { data } = await supabase
+          .from('room_rounds')
+          .select('answer_song_id')
+          .eq('room_id', session.roomId)
+        if (cancelled || !data) return
+        usedIdsRef.current = data.map((row: { answer_song_id: string }) => row.answer_song_id)
+      } catch {
+        /* ignore */
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [session.isHost, session.roomId, room])
+
+  const rankedPlayers = [...players].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score
+    if (b.correctCount !== a.correctCount) return b.correctCount - a.correctCount
+    return a.joinedAt.localeCompare(b.joinedAt)
+  })
+
+  return {
+    room,
+    players,
+    round,
+    answers,
+    myAnswer,
+    timeLeft,
+    countdownLeft,
+    loading,
+    starting,
+    error,
+    answerError,
+    reconnected,
+    startGame,
+    answer,
+    endGame,
+    rankedPlayers,
+  }
+}
