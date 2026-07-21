@@ -38,7 +38,7 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [timePerRound, setTimePerRound] = useState(15)
   const [nickname, setNickname] = useState('')
   const [joinPin, setJoinPin] = useState('')
-  const [multiAction, setMultiAction] = useState<'create' | 'join'>('create')
+  const [multiAction, setMultiAction] = useState<'create' | 'join'>('join')
   const [multiBusy, setMultiBusy] = useState(false)
   const [multiError, setMultiError] = useState<string | null>(null)
 
@@ -324,64 +324,104 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="mt-10 rounded-2xl border border-border bg-surface p-5">
-          <div className="mb-4 flex gap-2">
-            <button
-              onClick={() => setMultiAction('create')}
-              className={`rounded-lg px-3 py-2 text-sm font-bold ${
-                multiAction === 'create' ? 'bg-raised text-ink' : 'text-muted'
-              }`}
-            >
-              Өрөө үүсгэх
-            </button>
-            <button
-              onClick={() => setMultiAction('join')}
-              className={`rounded-lg px-3 py-2 text-sm font-bold ${
-                multiAction === 'join' ? 'bg-raised text-ink' : 'text-muted'
-              }`}
-            >
-              Өрөөнд орох
-            </button>
+        <section className="mt-10 overflow-hidden rounded-3xl border border-border bg-surface shadow-2xl shadow-base/20">
+          <div className="bg-gradient-to-r from-pink/25 via-violet-500/20 to-cyan/20 px-6 py-7 text-center sm:px-10">
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-cyan">Live music quiz</p>
+            <h2 className="mt-2 text-3xl font-extrabold text-ink sm:text-4xl">Найзуудтайгаа тоглоорой</h2>
+            <p className="mt-2 text-sm text-ink-soft">Өрөөний кодоо оруулаад шууд нэгдээрэй.</p>
           </div>
-          <label className="block text-sm font-bold text-muted" htmlFor="nickname">
-            Тоглогчийн нэр
-          </label>
-          <input
-            id="nickname"
-            value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
-            maxLength={24}
-            placeholder="Таны нэр"
-            className="mt-2 w-full rounded-xl border border-border bg-base px-3 py-2 text-ink outline-none focus:border-cyan/60"
-          />
-          {multiAction === 'join' && (
-            <>
-              <label className="mt-4 block text-sm font-bold text-muted" htmlFor="room-pin">
-                Өрөөний PIN
-              </label>
-              <input
-                id="room-pin"
-                value={joinPin}
-                onChange={(event) => setJoinPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                inputMode="numeric"
-                placeholder="6 оронтой PIN"
-                className="mt-2 w-full rounded-xl border border-border bg-base px-3 py-2 text-ink outline-none focus:border-cyan/60"
-              />
-            </>
-          )}
-          {multiError && <p className="mt-4 text-sm text-pink">{multiError}</p>}
-          <Button
-            className="mt-5 w-full"
-            disabled={
-              multiBusy ||
-              !hasNickname ||
-              (multiAction === 'create' ? !canStart : joinPin.replace(/\D/g, '').length !== 6)
-            }
-            onClick={() => void (multiAction === 'create' ? handleCreateRoom() : handleJoinRoom())}
-          >
-            {multiBusy ? 'Түр хүлээнэ үү…' : multiAction === 'create' ? 'Өрөө үүсгэх' : 'Өрөөнд орох'}
-          </Button>
-        </div>
+
+          <div className="p-5 sm:p-7">
+            <div className="mx-auto mb-6 grid max-w-md grid-cols-2 rounded-2xl bg-base p-1.5">
+              <button
+                onClick={() => {
+                  setMultiAction('join')
+                  setMultiError(null)
+                }}
+                className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${
+                  multiAction === 'join' ? 'bg-pink text-white shadow-lg shadow-pink/25' : 'text-muted hover:text-ink'
+                }`}
+              >
+                Өрөөнд орох
+              </button>
+              <button
+                onClick={() => {
+                  setMultiAction('create')
+                  setMultiError(null)
+                }}
+                className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${
+                  multiAction === 'create' ? 'bg-pink text-white shadow-lg shadow-pink/25' : 'text-muted hover:text-ink'
+                }`}
+              >
+                Өрөө үүсгэх
+              </button>
+            </div>
+
+            {multiAction === 'join' ? (
+              <div className="mx-auto max-w-md text-center">
+                <label className="block text-sm font-bold text-ink" htmlFor="room-pin">
+                  ӨРӨӨНИЙ КОД
+                </label>
+                <input
+                  id="room-pin"
+                  value={joinPin}
+                  onChange={(event) => setJoinPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123 456"
+                  className="mt-3 w-full rounded-2xl border-2 border-border bg-base px-4 py-4 text-center font-mono text-3xl font-extrabold tracking-[0.22em] text-ink outline-none placeholder:text-muted-2 focus:border-pink sm:text-4xl"
+                />
+                <label className="mt-5 block text-left text-sm font-bold text-muted" htmlFor="nickname">
+                  Таны нэр
+                </label>
+                <input
+                  id="nickname"
+                  value={nickname}
+                  onChange={(event) => setNickname(event.target.value)}
+                  maxLength={24}
+                  placeholder="Жишээ нь, Тэмүүжин"
+                  className="mt-2 w-full rounded-xl border border-border bg-base px-4 py-3 text-ink outline-none focus:border-cyan/60"
+                />
+                <Button
+                  className="mt-5 w-full py-4 text-base"
+                  disabled={multiBusy || !hasNickname || joinPin.length !== 6}
+                  onClick={() => void handleJoinRoom()}
+                >
+                  {multiBusy ? 'Нэгдэж байна…' : 'ӨРӨӨНД ОРОХ →'}
+                </Button>
+              </div>
+            ) : (
+              <div className="mx-auto max-w-xl rounded-2xl border border-border bg-base/60 p-5 sm:p-6">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan/15 text-xl">✦</span>
+                  <div>
+                    <h3 className="font-extrabold text-ink">Өөрийн өрөөг нээх</h3>
+                    <p className="text-sm text-muted">Тохиргоогоо сонгоод найзуудаа урь.</p>
+                  </div>
+                </div>
+                <label className="block text-sm font-bold text-muted" htmlFor="nickname">
+                  Хөтлөгчийн нэр
+                </label>
+                <input
+                  id="nickname"
+                  value={nickname}
+                  onChange={(event) => setNickname(event.target.value)}
+                  maxLength={24}
+                  placeholder="Таны нэр"
+                  className="mt-2 w-full rounded-xl border border-border bg-base px-4 py-3 text-ink outline-none focus:border-cyan/60"
+                />
+                <Button
+                  className="mt-5 w-full py-4 text-base"
+                  disabled={multiBusy || !hasNickname || !canStart}
+                  onClick={() => void handleCreateRoom()}
+                >
+                  {multiBusy ? 'Өрөө нээж байна…' : 'ӨРӨӨ ҮҮСГЭХ →'}
+                </Button>
+              </div>
+            )}
+            {multiError && <p className="mx-auto mt-4 max-w-md text-center text-sm font-bold text-pink">{multiError}</p>}
+          </div>
+        </section>
       )}
     </div>
   )
