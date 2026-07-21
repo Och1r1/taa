@@ -4,11 +4,13 @@ import { CategoryCard } from '../components/CategoryCard'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
+import { createRoom, joinRoom } from '../api/rooms'
 import { isSupabaseConfigured } from '../lib/supabase'
-import type { ArtistOption, Category, GameConfig, LeaderboardCategory } from '../types'
+import type { ArtistOption, Category, GameConfig, LeaderboardCategory, MultiSession } from '../types'
 
 interface Props {
   onStart: (slug: string, category: Category, config: GameConfig) => void
+  onEnterLobby: (session: MultiSession) => void
 }
 
 const MIN_SONGS = 4 // need at least 4 items to fill the answer options
@@ -18,7 +20,7 @@ const ROUND_OPTIONS = [3, 5, 10]
 const TIME_OPTIONS = [10, 15, 20, 30]
 const VISIBLE_CATEGORY_COUNT = 6
 
-export function HomeScreen({ onStart }: Props) {
+export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [categories, setCategories] = useState<LeaderboardCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [loadingCategories, setLoadingCategories] = useState(true)
@@ -34,6 +36,11 @@ export function HomeScreen({ onStart }: Props) {
 
   const [rounds, setRounds] = useState(5)
   const [timePerRound, setTimePerRound] = useState(15)
+  const [nickname, setNickname] = useState('')
+  const [joinPin, setJoinPin] = useState('')
+  const [multiAction, setMultiAction] = useState<'create' | 'join'>('create')
+  const [multiBusy, setMultiBusy] = useState(false)
+  const [multiError, setMultiError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -86,6 +93,40 @@ export function HomeScreen({ onStart }: Props) {
   )
   const selected = artists.find((a) => a.slug === selectedArtist)
   const canStart = Boolean(selectedCategory && selected && selected.songCount >= MIN_SONGS)
+  const hasNickname = nickname.trim().length >= 2
+
+  async function handleCreateRoom() {
+    if (!selectedArtist || !selectedCategory || !canStart || !hasNickname) return
+    setMultiBusy(true)
+    setMultiError(null)
+    try {
+      const result = await createRoom({
+        hostNickname: nickname,
+        artistSlug: selectedArtist,
+        category: selectedCategory,
+        config: { rounds, timePerRound, maxPoints: MAX_POINTS },
+      })
+      onEnterLobby(result.session)
+    } catch (error) {
+      setMultiError(error instanceof Error ? error.message : 'Өрөө үүсгэж чадсангүй.')
+    } finally {
+      setMultiBusy(false)
+    }
+  }
+
+  async function handleJoinRoom() {
+    if (!hasNickname || joinPin.replace(/\D/g, '').length !== 6) return
+    setMultiBusy(true)
+    setMultiError(null)
+    try {
+      const result = await joinRoom(joinPin, nickname)
+      onEnterLobby(result.session)
+    } catch (error) {
+      setMultiError(error instanceof Error ? error.message : 'Өрөөнд нэвтэрч чадсангүй.')
+    } finally {
+      setMultiBusy(false)
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
@@ -111,11 +152,12 @@ export function HomeScreen({ onStart }: Props) {
           Ганцаараа
         </button>
         <button
-          disabled
-          className="cursor-not-allowed rounded-lg px-5 py-2 text-sm font-bold text-muted-2"
-          title="Тун удахгүй"
+          onClick={() => setMode('multi')}
+          className={`rounded-lg px-5 py-2 text-sm font-bold transition ${
+            mode === 'multi' ? 'bg-raised text-ink' : 'text-muted'
+          }`}
         >
-          Хамтдаа · удахгүй
+          Хамтдаа
         </button>
       </div>
 
@@ -267,20 +309,80 @@ export function HomeScreen({ onStart }: Props) {
         />
       </div>
 
-      {/* Start */}
-      <div className="mt-10">
-        <Button
-          onClick={() =>
-            selectedArtist &&
-            selectedCategory &&
-            onStart(selectedArtist, selectedCategory, { rounds, timePerRound, maxPoints: MAX_POINTS })
-          }
-          disabled={!canStart}
-          className="w-full py-4 text-base sm:w-auto sm:px-12"
-        >
-          ▶ {selected ? `${selected.name}-тэй тоглох` : 'Тоглоом эхлүүлэх'}
-        </Button>
-      </div>
+      {mode === 'solo' ? (
+        <div className="mt-10">
+          <Button
+            onClick={() =>
+              selectedArtist &&
+              selectedCategory &&
+              onStart(selectedArtist, selectedCategory, { rounds, timePerRound, maxPoints: MAX_POINTS })
+            }
+            disabled={!canStart}
+            className="w-full py-4 text-base sm:w-auto sm:px-12"
+          >
+            ▶ {selected ? `${selected.name}-тэй тоглох` : 'Тоглоом эхлүүлэх'}
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-10 rounded-2xl border border-border bg-surface p-5">
+          <div className="mb-4 flex gap-2">
+            <button
+              onClick={() => setMultiAction('create')}
+              className={`rounded-lg px-3 py-2 text-sm font-bold ${
+                multiAction === 'create' ? 'bg-raised text-ink' : 'text-muted'
+              }`}
+            >
+              Өрөө үүсгэх
+            </button>
+            <button
+              onClick={() => setMultiAction('join')}
+              className={`rounded-lg px-3 py-2 text-sm font-bold ${
+                multiAction === 'join' ? 'bg-raised text-ink' : 'text-muted'
+              }`}
+            >
+              Өрөөнд орох
+            </button>
+          </div>
+          <label className="block text-sm font-bold text-muted" htmlFor="nickname">
+            Тоглогчийн нэр
+          </label>
+          <input
+            id="nickname"
+            value={nickname}
+            onChange={(event) => setNickname(event.target.value)}
+            maxLength={24}
+            placeholder="Таны нэр"
+            className="mt-2 w-full rounded-xl border border-border bg-base px-3 py-2 text-ink outline-none focus:border-cyan/60"
+          />
+          {multiAction === 'join' && (
+            <>
+              <label className="mt-4 block text-sm font-bold text-muted" htmlFor="room-pin">
+                Өрөөний PIN
+              </label>
+              <input
+                id="room-pin"
+                value={joinPin}
+                onChange={(event) => setJoinPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                inputMode="numeric"
+                placeholder="6 оронтой PIN"
+                className="mt-2 w-full rounded-xl border border-border bg-base px-3 py-2 text-ink outline-none focus:border-cyan/60"
+              />
+            </>
+          )}
+          {multiError && <p className="mt-4 text-sm text-pink">{multiError}</p>}
+          <Button
+            className="mt-5 w-full"
+            disabled={
+              multiBusy ||
+              !hasNickname ||
+              (multiAction === 'create' ? !canStart : joinPin.replace(/\D/g, '').length !== 6)
+            }
+            onClick={() => void (multiAction === 'create' ? handleCreateRoom() : handleJoinRoom())}
+          >
+            {multiBusy ? 'Түр хүлээнэ үү…' : multiAction === 'create' ? 'Өрөө үүсгэх' : 'Өрөөнд орох'}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -105,10 +105,7 @@ export default function App() {
         ) : (
           <HomeScreen
             onStart={(slug, category, config) => void engine.start(slug, category, config)}
-            onEnterLobby={(session) => {
-              if (!session?.roomId || !session.playerId) return
-              setMultiSession(session)
-            }}
+            onEnterLobby={(session) => setMultiSession(session)}
           />
         )}
       </div>
@@ -130,7 +127,10 @@ function MultiSessionGate({
 
   const inGame =
     room != null &&
-    (room.status === 'playing' || room.status === 'revealing' || room.status === 'finished')
+    (room.status === 'countdown' ||
+      room.status === 'playing' ||
+      room.status === 'revealing' ||
+      room.status === 'finished')
 
   if (inGame) {
     return <MultiGameScreen session={session} onLeave={onLeave} />

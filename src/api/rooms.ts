@@ -456,6 +456,15 @@ export async function finishRoomGame(roomId: string, hostToken: string): Promise
   if (error) throw new Error(`Тоглоом дуусгаж чадсангүй: ${rpcMessage(error)}`)
 }
 
+/** Host clears a finished room so the same players can start a rematch. */
+export async function restartRoomGame(roomId: string, hostToken: string): Promise<void> {
+  const { error } = await supabase.rpc('restart_room_game', {
+    p_room_id: roomId,
+    p_host_token: hostToken,
+  })
+  if (error) throw new Error(`Дахин эхлүүлж чадсангүй: ${rpcMessage(error)}`)
+}
+
 /** Host starts a synced 3-2-1 countdown before the next round. */
 export async function beginRoomCountdown(
   roomId: string,

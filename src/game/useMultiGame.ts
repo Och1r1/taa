@@ -7,6 +7,7 @@ import {
   fetchRoundAnswers,
   finishRoomGame,
   revealRoomRound,
+  restartRoomGame,
   startRoomRound,
   submitRoomAnswer,
   toRound,
@@ -44,6 +45,7 @@ export interface MultiGameState {
 
 export interface MultiGameApi extends MultiGameState {
   startGame: () => Promise<void>
+  restartGame: () => Promise<void>
   answer: (songId: string) => Promise<void>
   endGame: () => Promise<void>
   rankedPlayers: RoomPlayer[]
@@ -365,6 +367,23 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     }
   }, [session.isHost, session.hostToken, session.roomId])
 
+  const restartGame = useCallback(async () => {
+    if (!session.isHost || !session.hostToken || !room) return
+    setStarting(true)
+    setError(null)
+    try {
+      await restartRoomGame(session.roomId, session.hostToken)
+      poolRef.current = []
+      usedIdsRef.current = []
+      publishedCountdownRef.current = null
+      await beginRoomCountdown(session.roomId, session.hostToken, COUNTDOWN_SECONDS)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Дахин эхлүүлж чадсангүй')
+    } finally {
+      setStarting(false)
+    }
+  }, [room, session.hostToken, session.isHost, session.roomId])
+
   const answer = useCallback(
     async (songId: string) => {
       const current = roundRef.current
@@ -478,20 +497,16 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
         if (poolRef.current.length < 4) {
           poolRef.current = await fetchSongsByArtistSlug(room.artistSlug)
         }
-        // If we already have rounds in DB (reconnect), seed used ids before pick.
-        if (usedIdsRef.current.length === 0) {
-          const { data } = await supabase
-            .from('room_rounds')
-            .select('answer_song_id')
-            .eq('room_id', session.roomId)
-          usedIdsRef.current = (data ?? []).map(
-            (row: { answer_song_id: string }) => row.answer_song_id,
-          )
-        }
-        // Prefer: number of existing rounds == next index when continuing.
-        const existingCount = usedIdsRef.current.length
-        const publishIndex =
-          round?.status === 'revealed' ? room.currentRoundIndex + 1 : existingCount === 0 ? 0 : existingCount
+        // The database validates the next index against the number of persisted
+        // rounds. Fetch it immediately before publishing: Realtime and a resumed
+        // tab may otherwise leave `round` or `usedIdsRef` one transition behind.
+        const { data, error } = await supabase
+          .from('room_rounds')
+          .select('answer_song_id')
+          .eq('room_id', session.roomId)
+        if (error) throw error
+        usedIdsRef.current = (data ?? []).map((row: { answer_song_id: string }) => row.answer_song_id)
+        const publishIndex = usedIdsRef.current.length
         await publishRound(publishIndex)
       } catch (err) {
         // Keep this countdown retryable if the RPC failed before it changed the
@@ -558,6 +573,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     answerError,
     reconnected,
     startGame,
+    restartGame,
     answer,
     endGame,
     rankedPlayers,

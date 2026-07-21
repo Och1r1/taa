@@ -76,6 +76,7 @@ export async function fetchSongsByArtistSlug(slug: string): Promise<Song[]> {
     artistId: row.artist_id,
     title: row.title,
     mediaType: row.media_type ?? 'audio',
+    mediaPath: row.audio_path,
     mediaUrl: resolveMediaUrl(row.audio_path),
     snippetStart: Number(row.snippet_start) || 0,
     snippetDuration: Number(row.snippet_duration) || 15,
@@ -83,7 +84,7 @@ export async function fetchSongsByArtistSlug(slug: string): Promise<Song[]> {
 }
 
 /** Resolve a Storage object path to a public URL. */
-function resolveMediaUrl(path: string): string {
+export function resolveMediaUrl(path: string): string {
   const { data } = supabase.storage.from(AUDIO_BUCKET).getPublicUrl(path)
   return data.publicUrl
 }
