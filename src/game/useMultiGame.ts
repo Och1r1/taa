@@ -25,6 +25,7 @@ import type {
 
 const REVEAL_HOLD_MS = 4500
 const COUNTDOWN_SECONDS = 3
+const ROOM_SYNC_MS = 5000
 
 export interface MultiGameState {
   room: GameRoom | null
@@ -106,6 +107,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
   const roundRef = useRef<RoomRound | null>(null)
   const answersRef = useRef<RoomAnswer[]>([])
   const roundRequestRef = useRef(0)
+  const syncRequestRef = useRef(0)
   const sawLobbyRef = useRef(false)
 
   roomRef.current = room
@@ -145,21 +147,36 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     [session.roomId],
   )
 
+  // Realtime is the fast path, but browsers can suspend its socket and timers
+  // while a tab is in the background. Fetch the authoritative room state when
+  // the tab returns (and periodically while it is visible) so a player never
+  // needs to refresh to recover from missed events.
+  const syncRoomState = useCallback(async () => {
+    const requestId = ++syncRequestRef.current
+    const nextRoom = await fetchRoom(session.roomId)
+    const nextPlayers = await fetchRoomPlayers(session.roomId)
+    if (requestId !== syncRequestRef.current) return nextRoom
+
+    setRoom(nextRoom)
+    setPlayers(nextPlayers)
+
+    if (nextRoom?.status === 'playing' || nextRoom?.status === 'revealing') {
+      await refreshRoundBundle(nextRoom.currentRoundIndex)
+    }
+
+    return nextRoom
+  }, [refreshRoundBundle, session.roomId])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
 
     async function boot() {
       try {
-        const nextRoom = await fetchRoom(session.roomId)
+        const nextRoom = await syncRoomState()
         if (cancelled) return
-        setRoom(nextRoom)
         if (nextRoom?.status === 'lobby') sawLobbyRef.current = true
-        await refreshPlayers()
         if (nextRoom && nextRoom.status !== 'lobby' && nextRoom.status !== 'closed') {
-          if (nextRoom.status === 'playing' || nextRoom.status === 'revealing') {
-            await refreshRoundBundle(nextRoom.currentRoundIndex)
-          }
           // Mid-game refresh (not a fresh start from lobby this mount).
           if (!sawLobbyRef.current) {
             setReconnected(true)
@@ -254,7 +271,27 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       cancelled = true
       void supabase.removeChannel(channel)
     }
-  }, [session.roomId, session.playerId, refreshPlayers, refreshRoundBundle])
+  }, [session.roomId, session.playerId, refreshPlayers, refreshRoundBundle, syncRoomState])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const syncAfterResume = () => {
+      if (document.visibilityState !== 'visible') return
+      void syncRoomState().catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Өрөөтэй дахин холбогдож чадсангүй')
+      })
+    }
+
+    document.addEventListener('visibilitychange', syncAfterResume)
+    const syncId = window.setInterval(syncAfterResume, ROOM_SYNC_MS)
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', syncAfterResume)
+      window.clearInterval(syncId)
+    }
+  }, [syncRoomState])
 
   useEffect(() => {
     if (!round || round.status !== 'active' || room?.status !== 'playing') {
