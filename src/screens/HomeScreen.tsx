@@ -161,7 +161,7 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
       </div>
 
       {mode === 'multi' && (
-        <section className="mb-10 overflow-hidden rounded-3xl border border-pink/40 bg-surface shadow-2xl shadow-pink/10">
+        <section className="mb-10 overflow-hidden rounded-3xl bg-surface">
           <div className="bg-gradient-to-r from-pink/30 via-violet-500/20 to-cyan/20 px-6 py-6 text-center sm:px-10">
             <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-cyan">Live music quiz</p>
             <h2 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">Өрөөний код оруулна уу</h2>
@@ -367,8 +367,8 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
           </Button>
         </div>
       ) : (
-        <section className="mt-10 rounded-3xl border border-border bg-surface p-5 sm:p-7">
-          <div className="mx-auto max-w-xl rounded-2xl border border-border bg-base/60 p-5 sm:p-6">
+        <section className="mt-10 border-t border-border pt-8">
+          <div className="mx-auto max-w-xl">
             <div className="mb-5 flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan/15 text-xl">✦</span>
               <div>
