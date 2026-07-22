@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { closeRoom, leaveRoom, startRoomRound } from '../api/rooms'
 import { fetchSongsByArtistSlug } from '../api/songs'
 import { makeRoundPick } from '../game/roundPick'
+import { buildJoinUrl } from '../lib/joinUrl'
 import type { GameRoom, MultiSession, RoomPlayer } from '../types'
 
 interface Props {
@@ -27,10 +29,17 @@ export function LobbyScreen({
   const [busy, setBusy] = useState(false)
   const [starting, setStarting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'pin' | 'link' | null>(null)
 
   const closed = Boolean(!loading && (!room || room.status === 'closed'))
   const pin = room?.pin ?? session.pin
+  const joinUrl = (() => {
+    try {
+      return buildJoinUrl(pin)
+    } catch {
+      return null
+    }
+  })()
 
   async function handleLeave() {
     setBusy(true)
@@ -68,11 +77,11 @@ export function LobbyScreen({
     }
   }
 
-  async function copyPin() {
+  async function copyText(kind: 'pin' | 'link', value: string) {
     try {
-      await navigator.clipboard.writeText(pin)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
+      await navigator.clipboard.writeText(value)
+      setCopied(kind)
+      window.setTimeout(() => setCopied(null), 1500)
     } catch {
       /* ignore */
     }
@@ -87,7 +96,7 @@ export function LobbyScreen({
         </h1>
         <p className="mt-2 text-muted">
           {session.isHost
-            ? 'Найзууддаа PIN кодыг илгээгээд тэд нэгдэхийг хүлээнэ үү.'
+            ? 'Найзууддаа QR эсвэл холбоос илгээгээд тэд нэгдэхийг хүлээнэ үү.'
             : `Та ${session.nickname} нэрээр нэгдсэн. Хөтлөгч тоглоом эхлүүлэхийг хүлээнэ үү.`}
         </p>
       </div>
@@ -118,19 +127,54 @@ export function LobbyScreen({
             <div className="mt-3 font-mono text-5xl font-extrabold tracking-[0.35em] text-ink sm:text-6xl">
               {pin}
             </div>
-            <button
-              type="button"
-              onClick={() => void copyPin()}
-              className="mt-4 text-sm font-bold text-cyan hover:underline"
-            >
-              {copied ? 'Хуулагдлаа ✓' : 'PIN хуулах'}
-            </button>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => void copyText('pin', pin)}
+                className="text-sm font-bold text-cyan hover:underline"
+              >
+                {copied === 'pin' ? 'Хуулагдлаа ✓' : 'PIN хуулах'}
+              </button>
+              {joinUrl && (
+                <button
+                  type="button"
+                  onClick={() => void copyText('link', joinUrl)}
+                  className="text-sm font-bold text-cyan hover:underline"
+                >
+                  {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
+                </button>
+              )}
+            </div>
             {room && (
               <p className="mt-4 text-sm text-muted">
                 {room.artistSlug} · {room.rounds} раунд · {room.timePerRound}с
               </p>
             )}
           </div>
+
+          {session.isHost && joinUrl && (
+            <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-6 sm:flex-row sm:items-start sm:gap-6 sm:p-8">
+              <div className="rounded-xl bg-white p-3">
+                <QRCodeSVG value={joinUrl} size={160} marginSize={0} title="Өрөөнд нэгдэх QR" />
+              </div>
+              <div className="min-w-0 flex-1 text-center sm:text-left">
+                <div className="text-xs font-bold uppercase tracking-widest text-muted-2">
+                  QR-аар нэгдэх
+                </div>
+                <p className="mt-2 text-sm text-muted">
+                  Утасны камераар уншуулаад нэрийгээ оруулаад орно.
+                </p>
+                <p className="mt-3 break-all font-mono text-xs text-muted-2">{joinUrl}</p>
+                <button
+                  type="button"
+                  onClick={() => void copyText('link', joinUrl)}
+                  className="mt-3 text-sm font-bold text-cyan hover:underline"
+                >
+                  {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="mb-3 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
             Тоглогчид ({players.length}/20)
@@ -180,7 +224,7 @@ export function LobbyScreen({
                 {starting ? 'Эхлүүлж байна…' : '▶ Тоглоом эхлүүлэх'}
               </Button>
               <p className="mt-2 text-sm text-muted">
-                Найзууд PIN-аар нэгдсэний дараа эхлүүлнэ үү.
+                Найзууд QR эсвэл PIN-аар нэгдсэний дараа эхлүүлнэ үү.
               </p>
             </div>
           )}

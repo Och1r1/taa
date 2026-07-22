@@ -5,6 +5,7 @@ import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
 import { createRoom, joinRoom } from '../api/rooms'
+import { clearJoinPinFromUrl, normalizeJoinPin, readJoinPinFromUrl } from '../lib/joinUrl'
 import { isSupabaseConfigured } from '../lib/supabase'
 import type { ArtistOption, Category, GameConfig, LeaderboardCategory, MultiSession } from '../types'
 
@@ -27,7 +28,9 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [showMoreCategories, setShowMoreCategories] = useState(false)
   const [categorySearch, setCategorySearch] = useState('')
-  const [mode, setMode] = useState<'solo' | 'multi'>('solo')
+  const [mode, setMode] = useState<'solo' | 'multi'>(() =>
+    readJoinPinFromUrl() || /^\/join(\/|$)/i.test(window.location.pathname) ? 'multi' : 'solo',
+  )
 
   const [artists, setArtists] = useState<ArtistOption[]>([])
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null)
@@ -37,10 +40,25 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [rounds, setRounds] = useState(5)
   const [timePerRound, setTimePerRound] = useState(15)
   const [nickname, setNickname] = useState('')
-  const [joinPin, setJoinPin] = useState('')
+  const [joinPin, setJoinPin] = useState(() => readJoinPinFromUrl() ?? '')
   const [multiBusy, setMultiBusy] = useState(false)
   const [multiError, setMultiError] = useState<string | null>(null)
+  const [joinLinkError, setJoinLinkError] = useState<string | null>(null)
 
+  // Consume deep link once: keep PIN in the form, clean the address bar.
+  useEffect(() => {
+    const pin = readJoinPinFromUrl()
+    if (!pin) {
+      if (/^\/join(\/|$)/i.test(window.location.pathname)) {
+        setJoinLinkError('Холбоос буруу байна. 6 оронтой PIN-тай холбоос ашиглана уу.')
+        clearJoinPinFromUrl()
+      }
+      return
+    }
+    setJoinPin(pin)
+    setJoinLinkError(null)
+    clearJoinPinFromUrl()
+  }, [])
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setLoadingCategories(false)
@@ -114,11 +132,13 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   }
 
   async function handleJoinRoom() {
-    if (!hasNickname || joinPin.replace(/\D/g, '').length !== 6) return
+    const pin = normalizeJoinPin(joinPin)
+    if (!hasNickname || !pin) return
     setMultiBusy(true)
     setMultiError(null)
+    setJoinLinkError(null)
     try {
-      const result = await joinRoom(joinPin, nickname)
+      const result = await joinRoom(pin, nickname)
       onEnterLobby(result.session)
     } catch (error) {
       setMultiError(error instanceof Error ? error.message : 'Өрөөнд нэвтэрч чадсангүй.')
@@ -199,7 +219,11 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
                 {multiBusy ? 'Нэгдэж байна…' : 'ОРОХ →'}
               </Button>
             </div>
-            {multiError && <p className="mt-4 text-center text-sm font-bold text-pink">{multiError}</p>}
+            {(joinLinkError || multiError) && (
+              <p className="mt-4 text-center text-sm font-bold text-pink">
+                {joinLinkError ?? multiError}
+              </p>
+            )}
           </div>
         </section>
       )}
