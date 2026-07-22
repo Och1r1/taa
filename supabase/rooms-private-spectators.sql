@@ -54,7 +54,7 @@ returns text
 language sql
 volatile
 as $$
-  select encode(gen_random_bytes(18), 'hex');
+  select replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
 $$;
 
 create or replace function public.assert_room_invite(

@@ -251,7 +251,7 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
 
   for (let attempt = 0; attempt < 8; attempt++) {
     const pin = randomPin()
-    const { data, error } = await supabase.rpc('create_room', {
+    const rpcArgs: Record<string, string | number> = {
       p_pin: pin,
       p_host_token: hostToken,
       p_host_nickname: nickname,
@@ -260,11 +260,26 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
       p_rounds: input.config.rounds,
       p_time_per_round: input.config.timePerRound,
       p_max_points: input.config.maxPoints,
-      p_visibility: visibility,
-    })
+    }
+    // Only send p_visibility when private so public create still works
+    // before rooms-private-spectators.sql is applied.
+    if (visibility === 'private') {
+      rpcArgs.p_visibility = 'private'
+    }
+
+    const { data, error } = await supabase.rpc('create_room', rpcArgs)
 
     if (error) {
       lastError = new Error(`Өрөө үүсгэж чадсангүй: ${rpcMessage(error)}`)
+      if (
+        visibility === 'private' &&
+        error.message.includes('Could not find the function') &&
+        error.message.includes('p_visibility')
+      ) {
+        throw new Error(
+          'Хувийн өрөөнд supabase/rooms-private-spectators.sql-ийг Supabase SQL Editor дээр ажиллуулна уу.',
+        )
+      }
       if (
         error.message.includes('duplicate') ||
         error.message.includes('unique') ||
