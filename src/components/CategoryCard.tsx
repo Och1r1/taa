@@ -1,3 +1,5 @@
+import { SelectableCard } from './SelectableCard'
+
 interface Props {
   icon: string
   title: string
@@ -19,18 +21,13 @@ export function CategoryCard({
   onSelect,
 }: Props) {
   return (
-    <button
+    <SelectableCard
+      selected={selected}
       disabled={!active}
-      onClick={onSelect}
-      className={`relative flex flex-col gap-3 rounded-2xl border-2 p-5 text-left transition
-        ${
-          active
-            ? selected
-              ? 'border-transparent bg-raised'
-              : 'border-border bg-surface hover:bg-raised'
-            : 'cursor-not-allowed border-border/50 bg-surface/40 opacity-60'
-        }`}
-      style={selected ? { borderColor: accent, boxShadow: `0 0 0 1px ${accent}55` } : undefined}
+      accent={accent}
+      onSelect={onSelect}
+      className="gap-3 p-5"
+      badge={!active ? 'Тун удахгүй' : undefined}
     >
       <span
         className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
@@ -46,11 +43,6 @@ export function CategoryCard({
           {subtitle}
         </div>
       </div>
-      {!active && (
-        <span className="absolute right-3 top-3 rounded-full bg-raised px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-2">
-          Тун удахгүй
-        </span>
-      )}
       {selected && (
         <span
           className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white"
@@ -59,6 +51,6 @@ export function CategoryCard({
           Сонгосон
         </span>
       )}
-    </button>
+    </SelectableCard>
   )
 }

@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import { Button } from '../components/Button'
 import { CategoryCard } from '../components/CategoryCard'
 import { EqualizerBars } from '../components/EqualizerBars'
+import { NicknameInput } from '../components/NicknameInput'
+import { PillToggle } from '../components/PillToggle'
+import { SectionLabel } from '../components/SectionLabel'
+import { SelectableCard } from '../components/SelectableCard'
+import { StatusMessage } from '../components/StatusMessage'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
 import { getAuthEmail, resolveDisplayName, sendMagicLink, updateDisplayName } from '../api/auth'
@@ -46,6 +51,12 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     return join.pin || join.invite || /^\/join(\/|$)/i.test(window.location.pathname)
       ? 'multi'
       : 'solo'
+  })
+  const [multiSubMode, setMultiSubMode] = useState<'join' | 'host'>(() => {
+    const join = readJoinParamsFromUrl()
+    return join.pin || join.invite || /^\/join(\/|$)/i.test(window.location.pathname)
+      ? 'join'
+      : 'host'
   })
 
   const [artists, setArtists] = useState<ArtistOption[]>([])
@@ -269,190 +280,190 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
         </p>
       </div>
 
-      <section className="mb-8 max-w-md">
-        <label className="block text-sm font-bold text-muted" htmlFor="display-name">
-          Таны нэр
-          <div className="mt-2 flex gap-2">
-            <input
-              id="display-name"
-              value={nickname}
-              onChange={(event) => {
-                setNickname(event.target.value)
-                setProfileMessage(null)
-              }}
-              maxLength={24}
-              placeholder="Тоглоомын нэр"
-              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-ink outline-none focus:border-cyan/60"
-            />
-            <Button
-              variant="ghost"
-              className="shrink-0 px-4 py-3 text-sm"
-              disabled={!hasNickname || profileSaving}
-              onClick={() => void handleSaveProfile()}
-            >
-              {profileSaving ? '…' : 'Хадгалах'}
-            </Button>
-          </div>
-        </label>
-        {profileMessage && (
-          <p className={`mt-2 text-sm ${profileMessage.includes('хадгалагдлаа') ? 'text-cyan' : 'text-pink'}`}>
-            {profileMessage}
-          </p>
-        )}
-        <div className="mt-4 border-t border-border pt-4">
-          {signedInEmail ? (
-            <p className="text-sm text-muted">
-              Нэвтэрсэн: <span className="font-bold text-ink">{signedInEmail}</span>
-            </p>
-          ) : (
-            <>
-              <label className="block text-sm font-bold text-muted" htmlFor="magic-email">
-                И-мэйлээр нэвтрэх (заавал биш)
-                <div className="mt-2 flex gap-2">
-                  <input
-                    id="magic-email"
-                    type="email"
-                    value={magicEmail}
-                    onChange={(event) => {
-                      setMagicEmail(event.target.value)
-                      setMagicMessage(null)
-                    }}
-                    placeholder="you@example.com"
-                    className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-ink outline-none focus:border-cyan/60"
-                  />
-                  <Button
-                    variant="ghost"
-                    className="shrink-0 px-4 py-3 text-sm"
-                    disabled={magicBusy || !magicEmail.includes('@')}
-                    onClick={() => void handleMagicLink()}
+      <details className="mb-8 max-w-md rounded-2xl border border-border bg-surface/60 open:bg-surface">
+        <summary className="cursor-pointer select-none px-5 py-4 text-sm font-bold text-muted hover:text-ink">
+          Профайл — {hasNickname ? nickname : 'нэрээ тохируулах'}
+        </summary>
+        <div className="px-5 pb-5">
+          <NicknameInput
+            id="display-name"
+            label="Таны нэр"
+            value={nickname}
+            onChange={(value) => {
+              setNickname(value)
+              setProfileMessage(null)
+            }}
+            background="surface"
+            action={{
+              label: 'Хадгалах',
+              busy: profileSaving,
+              disabled: !hasNickname || profileSaving,
+              onClick: () => void handleSaveProfile(),
+            }}
+            message={
+              profileMessage
+                ? { text: profileMessage, tone: profileMessage.includes('хадгалагдлаа') ? 'success' : 'error' }
+                : null
+            }
+          />
+          <div className="mt-4 border-t border-border pt-4">
+            {signedInEmail ? (
+              <p className="text-sm text-muted">
+                Нэвтэрсэн: <span className="font-bold text-ink">{signedInEmail}</span>
+              </p>
+            ) : (
+              <>
+                <label className="block text-sm font-bold text-muted" htmlFor="magic-email">
+                  И-мэйлээр нэвтрэх (заавал биш)
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      id="magic-email"
+                      type="email"
+                      value={magicEmail}
+                      onChange={(event) => {
+                        setMagicEmail(event.target.value)
+                        setMagicMessage(null)
+                      }}
+                      placeholder="you@example.com"
+                      className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-ink outline-none focus:border-cyan/60"
+                    />
+                    <Button
+                      variant="ghost"
+                      className="shrink-0 px-4 py-3 text-sm"
+                      disabled={magicBusy || !magicEmail.includes('@')}
+                      onClick={() => void handleMagicLink()}
+                    >
+                      {magicBusy ? '…' : 'Илгээх'}
+                    </Button>
+                  </div>
+                </label>
+                {magicMessage && (
+                  <p
+                    className={`mt-2 text-sm ${
+                      magicMessage.includes('илгээлээ') ? 'text-cyan' : 'text-pink'
+                    }`}
                   >
-                    {magicBusy ? '…' : 'Илгээх'}
-                  </Button>
-                </div>
-              </label>
-              {magicMessage && (
-                <p
-                  className={`mt-2 text-sm ${
-                    magicMessage.includes('илгээлээ') ? 'text-cyan' : 'text-pink'
-                  }`}
-                >
-                  {magicMessage}
-                </p>
-              )}
-            </>
-          )}
+                    {magicMessage}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </section>
+      </details>
 
       {/* Mode toggle */}
-      <div className="mb-6 inline-flex rounded-xl border border-border bg-surface p-1">
-        <button
-          onClick={() => setMode('solo')}
-          className={`rounded-lg px-5 py-2 text-sm font-bold transition ${
-            mode === 'solo' ? 'bg-raised text-ink' : 'text-muted'
-          }`}
-        >
-          Ганцаараа
-        </button>
-        <button
-          onClick={() => setMode('multi')}
-          className={`rounded-lg px-5 py-2 text-sm font-bold transition ${
-            mode === 'multi' ? 'bg-raised text-ink' : 'text-muted'
-          }`}
-        >
-          Хамтдаа
-        </button>
-      </div>
+      <PillToggle
+        className="mb-6"
+        background="surface"
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'solo', label: 'Ганцаараа' },
+          { value: 'multi', label: 'Хамтдаа' },
+        ]}
+      />
 
       {mode === 'multi' && (
-        <section className="mb-10 overflow-hidden rounded-3xl bg-surface">
-          <div className="bg-gradient-to-r from-pink/30 via-violet-500/20 to-cyan/20 px-6 py-6 text-center sm:px-10">
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-cyan">Live music quiz</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">
-              {joinInvite ? 'Урилгын холбоосоор нэгдэх' : 'Өрөөний код оруулна уу'}
-            </h2>
-          </div>
-          <div className="mx-auto max-w-xl p-5 sm:p-7">
-            <div className="grid gap-3 sm:grid-cols-[1fr_0.85fr] sm:items-end">
-              <label className="block text-left text-sm font-bold text-muted" htmlFor="room-pin">
-                Өрөөний код
-                <input
-                  id="room-pin"
-                  value={joinPin}
-                  onChange={(event) => setJoinPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="123456"
-                  disabled={Boolean(joinInvite)}
-                  className="mt-2 w-full rounded-xl border-2 border-border bg-base px-3 py-3 text-center font-mono text-2xl font-extrabold tracking-[0.16em] text-ink outline-none placeholder:text-muted-2 focus:border-pink disabled:opacity-60"
-                />
-              </label>
-              <label className="block text-left text-sm font-bold text-muted" htmlFor="nickname">
-                Таны нэр
-                <input
-                  id="nickname"
-                  value={nickname}
-                  onChange={(event) => setNickname(event.target.value)}
-                  maxLength={24}
-                  placeholder="Таны нэр"
-                  className="mt-2 w-full rounded-xl border border-border bg-base px-4 py-3 text-ink outline-none focus:border-cyan/60"
-                />
-              </label>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button
-                className="min-w-[8rem] flex-1 py-3.5 text-sm sm:flex-none sm:px-7"
-                disabled={
-                  multiBusy ||
-                  !hasNickname ||
-                  (!joinInvite && joinPin.length !== 6) ||
-                  !acceptsPlayers
-                }
-                onClick={() => void handleJoinRoom(false)}
-              >
-                {multiBusy ? 'Нэгдэж байна…' : 'Тоглогчоор орох'}
-              </Button>
-              <Button
-                variant="ghost"
-                className="min-w-[8rem] flex-1 py-3.5 text-sm sm:flex-none sm:px-7"
-                disabled={
-                  multiBusy ||
-                  !hasNickname ||
-                  (!joinInvite && joinPin.length !== 6) ||
-                  !acceptsSpectators
-                }
-                onClick={() => void handleJoinRoom(true)}
-              >
-                Үзэгчээр орох
-              </Button>
-            </div>
-            {joinInvite && (
-              <p className="mt-3 text-center text-xs text-muted">Хувийн урилгын холбоос илрүүлсэн.</p>
-            )}
-            {(joinLinkError || multiError) && (
-              <p className="mt-4 text-center text-sm font-bold text-pink">
-                {joinLinkError ?? multiError}
-              </p>
-            )}
-          </div>
-        </section>
+        <>
+          <PillToggle
+            className="mb-6"
+            value={multiSubMode}
+            onChange={setMultiSubMode}
+            options={[
+              { value: 'join', label: 'Нэгдэх' },
+              { value: 'host', label: 'Өрөө нээх' },
+            ]}
+          />
+
+          {multiSubMode === 'join' && (
+            <section className="mb-10 overflow-hidden rounded-3xl bg-surface">
+              <div className="bg-gradient-to-r from-pink/30 via-violet-500/20 to-cyan/20 px-6 py-6 text-center sm:px-10">
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-cyan">Live music quiz</p>
+                <h2 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">
+                  {joinInvite ? 'Урилгын холбоосоор нэгдэх' : 'Өрөөний код оруулна уу'}
+                </h2>
+              </div>
+              <div className="mx-auto max-w-xl p-5 sm:p-7">
+                <div className="grid gap-3 sm:grid-cols-[1fr_0.85fr] sm:items-end">
+                  <label className="block text-left text-sm font-bold text-muted" htmlFor="room-pin">
+                    Өрөөний код
+                    <input
+                      id="room-pin"
+                      value={joinPin}
+                      onChange={(event) => setJoinPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
+                      disabled={Boolean(joinInvite)}
+                      className="mt-2 w-full rounded-xl border-2 border-border bg-base px-3 py-3 text-center font-mono text-2xl font-extrabold tracking-[0.16em] text-ink outline-none placeholder:text-muted-2 focus:border-pink disabled:opacity-60"
+                    />
+                  </label>
+                  <NicknameInput
+                    id="nickname"
+                    label="Таны нэр"
+                    value={nickname}
+                    onChange={setNickname}
+                  />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button
+                    className="min-w-[8rem] flex-1 py-3.5 text-sm sm:flex-none sm:px-7"
+                    disabled={
+                      multiBusy ||
+                      !hasNickname ||
+                      (!joinInvite && joinPin.length !== 6) ||
+                      !acceptsPlayers
+                    }
+                    onClick={() => void handleJoinRoom(false)}
+                  >
+                    {multiBusy ? 'Нэгдэж байна…' : 'Тоглогчоор орох'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="min-w-[8rem] flex-1 py-3.5 text-sm sm:flex-none sm:px-7"
+                    disabled={
+                      multiBusy ||
+                      !hasNickname ||
+                      (!joinInvite && joinPin.length !== 6) ||
+                      !acceptsSpectators
+                    }
+                    onClick={() => void handleJoinRoom(true)}
+                  >
+                    Үзэгчээр орох
+                  </Button>
+                </div>
+                {joinInvite && (
+                  <p className="mt-3 text-center text-xs text-muted">Хувийн урилгын холбоос илрүүлсэн.</p>
+                )}
+                {(joinLinkError || multiError) && (
+                  <StatusMessage className="mt-4 text-center font-bold">
+                    {joinLinkError ?? multiError}
+                  </StatusMessage>
+                )}
+              </div>
+            </section>
+          )}
+        </>
       )}
 
+      {(mode === 'solo' || multiSubMode === 'host') && (
+        <>
       {/* Category grid */}
-      <div className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-2">Ангилал</div>
+      <SectionLabel className="mb-4">Ангилал</SectionLabel>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {loadingCategories ? (
           <div className="col-span-full flex items-center gap-3 text-muted">
             <EqualizerBars className="h-5" /> Ангиллуудыг ачааллаж байна…
           </div>
         ) : categoryError ? (
-          <p className="col-span-full rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
+          <StatusMessage variant="error" className="col-span-full">
             {categoryError}
-          </p>
+          </StatusMessage>
         ) : categories.length === 0 ? (
-          <p className="col-span-full rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
+          <StatusMessage variant="warning" className="col-span-full">
             Идэвхтэй ангилал алга байна.
-          </p>
+          </StatusMessage>
         ) : visibleCategories.map((category) => (
           <CategoryCard
             key={category.slug}
@@ -511,40 +522,31 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
       )}
 
       {/* Pack picker */}
-      <div className="mb-4 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
+      <SectionLabel className="mb-4 mt-10">
         {selectedCategoryData?.pickerLabel ?? 'Багц'}
-      </div>
+      </SectionLabel>
       {loadingArtists ? (
         <div className="flex items-center gap-3 text-muted">
           <EqualizerBars className="h-5" /> Ачааллаж байна…
         </div>
       ) : artistError ? (
-        <p className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
-          {artistError}
-        </p>
+        <StatusMessage variant="error">{artistError}</StatusMessage>
       ) : artists.length === 0 ? (
-        <p className="rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
+        <StatusMessage variant="warning">
           {selectedCategoryData?.emptyMessage ?? 'Багц алга байна.'} <code>npm run ingest</code>{' '}
           ажиллуулж нэмнэ үү.
-        </p>
+        </StatusMessage>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {artists.map((a) => {
             const playable = a.songCount >= MIN_SONGS
-            const isSel = selectedArtist === a.slug
             return (
-              <button
+              <SelectableCard
                 key={a.id}
+                selected={selectedArtist === a.slug}
                 disabled={!playable}
-                onClick={() => setSelectedArtist(a.slug)}
-                className={`flex flex-col gap-1 rounded-2xl border-2 p-4 text-left transition
-                  ${
-                    playable
-                      ? isSel
-                        ? 'border-pink bg-raised'
-                        : 'border-border bg-surface hover:bg-raised'
-                      : 'cursor-not-allowed border-border/50 bg-surface/40 opacity-60'
-                  }`}
+                accent="#ec4899"
+                onSelect={() => setSelectedArtist(a.slug)}
               >
                 <span className="text-base font-bold text-ink" style={{ color: '#f2f4f8' }}>
                   {a.name}
@@ -553,38 +555,41 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
                   {a.songCount} {selectedCategoryData?.itemLabel ?? 'асуулт'}
                   {playable ? '' : ` · дор хаяж ${MIN_SONGS} хэрэгтэй`}
                 </span>
-              </button>
+              </SelectableCard>
             )
           })}
         </div>
       )}
 
       {!isSupabaseConfigured && (
-        <p className="mt-6 rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
+        <StatusMessage variant="warning" className="mt-6">
           ⚠ Supabase тохируулаагүй байна. <code>.env.example</code>-г <code>.env.local</code> болгож
           хуулаад төслийн URL, anon key-ээ оруулна уу.
-        </p>
+        </StatusMessage>
       )}
 
       {/* Settings (Тохиргоо) */}
-      <div className="mb-4 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
-        Тохиргоо
-      </div>
+      <SectionLabel className="mb-4 mt-10">Тохиргоо</SectionLabel>
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:gap-10">
-        <Segmented
-          label="Раунд"
-          options={ROUND_OPTIONS}
-          value={rounds}
-          onChange={setRounds}
-        />
-        <Segmented
-          label="Хугацаа"
-          options={TIME_OPTIONS}
-          value={timePerRound}
-          onChange={setTimePerRound}
-          suffix="с"
-        />
+        <div>
+          <SectionLabel className="mb-2">Раунд</SectionLabel>
+          <PillToggle
+            value={rounds}
+            onChange={setRounds}
+            options={ROUND_OPTIONS.map((opt) => ({ value: opt, label: String(opt) }))}
+          />
+        </div>
+        <div>
+          <SectionLabel className="mb-2">Хугацаа</SectionLabel>
+          <PillToggle
+            value={timePerRound}
+            onChange={setTimePerRound}
+            options={TIME_OPTIONS.map((opt) => ({ value: opt, label: `${opt}с` }))}
+          />
+        </div>
       </div>
+        </>
+      )}
 
       {mode === 'solo' ? (
         <div className="mt-10">
@@ -600,49 +605,26 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
             ▶ {selected ? `${selected.name}-тэй тоглох` : 'Тоглоом эхлүүлэх'}
           </Button>
         </div>
-      ) : (
+      ) : multiSubMode === 'host' ? (
         <section className="mt-10 border-t border-border pt-8">
           <div className="mx-auto max-w-xl">
-            <div className="mb-5 flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan/15 text-xl">✦</span>
-              <div>
-                <h2 className="font-extrabold text-ink">Өөрийн өрөөг нээх</h2>
-                <p className="text-sm text-muted">Тохиргоогоо сонгоод найзуудаа урь.</p>
-              </div>
-            </div>
-            <label className="block text-sm font-bold text-muted" htmlFor="host-nickname">
-              Хөтлөгчийн нэр
-            </label>
-            <input
+            <p className="mb-5 text-sm text-muted">Тохиргоогоо сонгоод найзуудаа урь.</p>
+            <NicknameInput
               id="host-nickname"
+              label="Хөтлөгчийн нэр"
               value={nickname}
-              onChange={(event) => setNickname(event.target.value)}
-              maxLength={24}
-              placeholder="Таны нэр"
-              className="mt-2 w-full rounded-xl border border-border bg-base px-4 py-3 text-ink outline-none focus:border-cyan/60"
+              onChange={setNickname}
             />
             <div className="mt-5">
-              <div className="mb-2 text-xs font-bold tracking-widest text-muted-2">Харагдац</div>
-              <div className="inline-flex rounded-xl border border-border bg-base p-1">
-                <button
-                  type="button"
-                  onClick={() => setRoomVisibility('public')}
-                  className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-                    roomVisibility === 'public' ? 'bg-raised text-ink' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  Нийтийн PIN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRoomVisibility('private')}
-                  className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-                    roomVisibility === 'private' ? 'bg-raised text-ink' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  Хувийн урилга
-                </button>
-              </div>
+              <SectionLabel className="mb-2">Харагдац</SectionLabel>
+              <PillToggle
+                value={roomVisibility}
+                onChange={setRoomVisibility}
+                options={[
+                  { value: 'public', label: 'Нийтийн PIN' },
+                  { value: 'private', label: 'Хувийн урилга' },
+                ]}
+              />
               <p className="mt-2 text-xs text-muted">
                 {roomVisibility === 'private'
                   ? 'Зөвхөн урилгын холбоосоор нэгдэнэ. PIN-аар орж болохгүй.'
@@ -658,41 +640,7 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
             </Button>
           </div>
         </section>
-      )}
-    </div>
-  )
-}
-
-function Segmented({
-  label,
-  options,
-  value,
-  onChange,
-  suffix = '',
-}: {
-  label: string
-  options: number[]
-  value: number
-  onChange: (v: number) => void
-  suffix?: string
-}) {
-  return (
-    <div>
-      <div className="mb-2 text-xs font-bold tracking-widest text-muted-2">{label}</div>
-      <div className="inline-flex rounded-xl border border-border bg-base p-1">
-        {options.map((opt) => (
-          <button
-            key={opt}
-            onClick={() => onChange(opt)}
-            className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-              value === opt ? 'bg-raised text-ink' : 'text-muted hover:text-ink'
-            }`}
-          >
-            {opt}
-            {suffix}
-          </button>
-        ))}
-      </div>
+      ) : null}
     </div>
   )
 }
