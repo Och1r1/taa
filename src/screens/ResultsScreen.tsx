@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Category, RoundResult, ScoreEntry } from '../types'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
+import { DISPLAY_NAME_KEY, updateDisplayName } from '../api/auth'
 import { fetchTopScores, saveScore } from '../api/scores'
 import { isSupabaseConfigured } from '../lib/supabase'
 
@@ -14,13 +15,11 @@ interface Props {
   onHome: () => void
 }
 
-const NAME_KEY = 'taa_player_name'
-
 export function ResultsScreen({ score, results, artistSlug, category, onPlayAgain, onHome }: Props) {
   const correctCount = results.filter((r) => r.correct).length
   const maxScore = results.length * 1000
 
-  const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) ?? '')
+  const [name, setName] = useState(() => localStorage.getItem(DISPLAY_NAME_KEY) ?? '')
   const [saving, setSaving] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -50,15 +49,21 @@ export function ResultsScreen({ score, results, artistSlug, category, onPlayAgai
     setSaving(true)
     setSaveError(null)
     try {
+      const trimmed = name.trim()
       const entry = await saveScore({
-        playerName: name.trim(),
+        playerName: trimmed,
         artistSlug,
         category,
         points: score,
         correctCount,
         rounds: results.length,
       })
-      localStorage.setItem(NAME_KEY, name.trim())
+      localStorage.setItem(DISPLAY_NAME_KEY, trimmed)
+      try {
+        await updateDisplayName(trimmed)
+      } catch {
+        // Profile migration may not be applied yet.
+      }
       setSavedId(entry.id)
       const list = await fetchTopScores(artistSlug)
       setScores(list)
