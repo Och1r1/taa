@@ -75,7 +75,7 @@ export function MultiGameScreen({ session, onLeave }: Props) {
         <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Тоглоом дууслаа</h1>
         <p className="mt-2 text-muted">
           {session.isHost
-            ? 'Эцсийн онооны самбар. Дахин тоглох үед лобби руу буцана.'
+            ? 'Эцсийн онооны самбар. Оноо Тэргүүлэгчид рүү хадгалагдсан. Дахин тоглох үед лобби руу буцна.'
             : 'Эцсийн онооны самбар. Хөтлөгч дахин эхлүүлэхийг хүлээнэ үү.'}
         </p>
 

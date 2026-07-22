@@ -77,18 +77,18 @@ Authentication comes first because private access and reliable score ownership d
 
 ### Scope
 
-- [ ] Extend score storage with `mode` (`solo` or `multi`) and room metadata.
-- [ ] Decide whether to save every participant, only the podium, or both.
-- [ ] Add a host-authorized RPC that writes final scores once per completed room.
-- [ ] Add idempotency so reconnecting or refreshing cannot duplicate results.
-- [ ] Add multiplayer filters or badges to the leaderboard screen.
-- [ ] Define whether solo and multiplayer rankings appear together or separately.
+- [x] Extend score storage with `mode` (`solo` or `multi`) and room metadata.
+- [x] Decide whether to save every participant, only the podium, or both.
+- [x] Add a host-authorized RPC that writes final scores once per completed room.
+- [x] Add idempotency so reconnecting or refreshing cannot duplicate results.
+- [x] Add multiplayer filters or badges to the leaderboard screen.
+- [x] Define whether solo and multiplayer rankings appear together or separately.
 
 ### Acceptance checks
 
-- [ ] Finished-room results are stored exactly once.
-- [ ] Saved results match final room scores and correct-answer counts.
-- [ ] The leaderboard clearly identifies multiplayer results.
+- [x] Finished-room results are stored exactly once.
+- [x] Saved results match final room scores and correct-answer counts.
+- [x] The leaderboard clearly identifies multiplayer results.
 
 ## 5. QR join
 
@@ -138,5 +138,5 @@ Authentication comes first because private access and reliable score ownership d
 - [ ] Is sign-in required for everyone, or should guests remain anonymous?
 - [ ] Are private rooms PIN plus invite link, or invite link only?
 - [ ] Should rematches preserve the existing player roster automatically?
-- [ ] Should multiplayer scores share a leaderboard with solo scores?
+- [x] Should multiplayer scores share a leaderboard with solo scores?
 - [ ] Can spectators see media, or should they see answers and rankings only?

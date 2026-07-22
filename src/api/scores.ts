@@ -10,6 +10,7 @@ interface ScoreRow {
   correct_count: number
   rounds: number
   created_at: string
+  mode?: 'solo' | 'multi' | null
 }
 
 interface SaveScoreInput {
@@ -26,7 +27,10 @@ export interface ScorePage {
   hasMore: boolean
 }
 
-/** Insert a finished game's score and return the saved entry. */
+const SCORE_COLUMNS =
+  'id, player_name, artist_slug, category, points, correct_count, rounds, created_at, mode'
+
+/** Insert a finished solo game's score and return the saved entry. */
 export async function saveScore(input: SaveScoreInput): Promise<ScoreEntry> {
   const { data, error } = await supabase
     .from('scores')
@@ -37,8 +41,9 @@ export async function saveScore(input: SaveScoreInput): Promise<ScoreEntry> {
       points: input.points,
       correct_count: input.correctCount,
       rounds: input.rounds,
+      mode: 'solo',
     })
-    .select()
+    .select(SCORE_COLUMNS)
     .single()
 
   if (error) throw new Error(`Оноог хадгалж чадсангүй: ${error.message}`)
@@ -49,7 +54,7 @@ export async function saveScore(input: SaveScoreInput): Promise<ScoreEntry> {
 export async function fetchTopScores(artistSlug: string, limit = 10): Promise<ScoreEntry[]> {
   const { data, error } = await supabase
     .from('scores')
-    .select('id, player_name, artist_slug, category, points, correct_count, rounds, created_at')
+    .select(SCORE_COLUMNS)
     .eq('artist_slug', artistSlug)
     .order('points', { ascending: false })
     .order('created_at', { ascending: true })
@@ -59,7 +64,7 @@ export async function fetchTopScores(artistSlug: string, limit = 10): Promise<Sc
   return ((data ?? []) as ScoreRow[]).map(toEntry)
 }
 
-/** One ordered page of saved category scores. */
+/** One ordered page of saved category scores (solo + multi together). */
 export async function fetchTopScoresForCategory(
   category: Category,
   offset = 0,
@@ -67,7 +72,7 @@ export async function fetchTopScoresForCategory(
 ): Promise<ScorePage> {
   const { data, error } = await supabase
     .from('scores')
-    .select('id, player_name, artist_slug, category, points, correct_count, rounds, created_at')
+    .select(SCORE_COLUMNS)
     .eq('category', category)
     .order('points', { ascending: false })
     .order('created_at', { ascending: true })
@@ -91,5 +96,6 @@ function toEntry(row: ScoreRow): ScoreEntry {
     correctCount: row.correct_count,
     rounds: row.rounds,
     createdAt: row.created_at,
+    mode: row.mode === 'multi' ? 'multi' : 'solo',
   }
 }

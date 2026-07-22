@@ -103,7 +103,7 @@ export function LeaderboardScreen() {
         <h1 className="text-4xl font-extrabold leading-tight">
           🏆 <span className="text-amber">Тэргүүлэгчид</span>
         </h1>
-        <p className="mt-2 text-muted">Ангилал бүрийн хамгийн өндөр оноо авсан тоглогчид.</p>
+        <p className="mt-2 text-muted">Ангилал бүрийн хамгийн өндөр оноо — ганцаараа болон хамтдаа.</p>
       </div>
 
       {categoriesLoading ? (
@@ -213,7 +213,14 @@ export function LeaderboardScreen() {
                   {RANK[i] ?? i + 1}
                 </span>
                 <div className="min-w-0">
-                  <div className="truncate text-base font-bold text-ink">{s.playerName}</div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="truncate text-base font-bold text-ink">{s.playerName}</div>
+                    {s.mode === 'multi' && (
+                      <span className="shrink-0 rounded-lg bg-pink/15 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-pink">
+                        Хамтдаа
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-2">
                     {prettyArtist(s.artistSlug)} · {s.correctCount}/{s.rounds} зөв
                   </div>

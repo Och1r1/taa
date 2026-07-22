@@ -92,6 +92,8 @@ export interface ScoreEntry {
   correctCount: number
   rounds: number
   createdAt: string
+  /** Solo games default to solo; multiplayer exports use multi. */
+  mode: 'solo' | 'multi'
 }
 
 /** Lobby / in-progress multiplayer room status. */
