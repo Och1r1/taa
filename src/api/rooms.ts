@@ -14,6 +14,7 @@ import type {
   RoomRoundOption,
   RoomStatus,
   RoomVisibility,
+  PublicLobbyEntry,
   RoundOutcome,
   Song,
 } from '../types'
@@ -396,6 +397,44 @@ export async function peekRoomByPin(pin: string): Promise<RoomPeek> {
   const { data, error } = await supabase.rpc('peek_room_by_pin', { p_pin: cleaned })
   if (error) throw new Error(rpcMessage(error))
   return toPeek(normalizeRpcPayload(data))
+}
+
+/** Browse open public lobbies (never includes private rooms). */
+export async function listPublicLobbies(limit = 20): Promise<PublicLobbyEntry[]> {
+  await ensureAnonymousUser()
+  const { data, error } = await supabase.rpc('list_public_lobbies', { p_limit: limit })
+  if (error) {
+    if (error.message.includes('Could not find the function')) {
+      throw new Error(
+        'Идэвхтэй өрөөний жагсаалт ажиллахгүй байна. supabase/rooms-discovery.sql-ийг ажиллуулна уу.',
+      )
+    }
+    throw new Error(`Өрөөнүүдийг татаж чадсангүй: ${rpcMessage(error)}`)
+  }
+
+  const rows = (normalizeRpcPayload(data) ?? []) as Array<{
+    id: string
+    pin: string
+    artist_slug: string
+    category: string
+    rounds: number
+    time_per_round: number
+    player_count: number
+    created_at: string
+  }>
+
+  if (!Array.isArray(rows)) return []
+
+  return rows.map((row) => ({
+    id: row.id,
+    pin: row.pin,
+    artistSlug: row.artist_slug,
+    category: row.category as Category,
+    rounds: row.rounds,
+    timePerRound: row.time_per_round,
+    playerCount: row.player_count,
+    createdAt: row.created_at,
+  }))
 }
 
 export async function peekRoomByInvite(invite: string): Promise<RoomPeek> {

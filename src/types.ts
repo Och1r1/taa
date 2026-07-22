@@ -105,6 +105,18 @@ export type RoomPlayerRole = 'player' | 'spectator'
 
 export type RematchStatus = 'pending' | 'completed' | 'cancelled'
 
+/** Public lobby row from list_public_lobbies (joinable via PIN). */
+export interface PublicLobbyEntry {
+  id: string
+  pin: string
+  artistSlug: string
+  category: Category
+  rounds: number
+  timePerRound: number
+  playerCount: number
+  createdAt: string
+}
+
 /** Public room row synced via Realtime and REST. */
 export interface GameRoom {
   id: string

@@ -10,7 +10,7 @@ import { StatusMessage } from '../components/StatusMessage'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
 import { getAuthEmail, resolveDisplayName, sendMagicLink, updateDisplayName } from '../api/auth'
-import { createRoom, joinRoom, peekRoomByInvite, peekRoomByPin } from '../api/rooms'
+import { createRoom, joinRoom, listPublicLobbies, peekRoomByInvite, peekRoomByPin } from '../api/rooms'
 import {
   clearJoinPinFromUrl,
   normalizeInviteSecret,
@@ -24,6 +24,7 @@ import type {
   GameConfig,
   LeaderboardCategory,
   MultiSession,
+  PublicLobbyEntry,
   RoomVisibility,
 } from '../types'
 
@@ -38,6 +39,11 @@ const MAX_POINTS = 1000
 const ROUND_OPTIONS = [3, 5, 10]
 const TIME_OPTIONS = [10, 15, 20, 30]
 const VISIBLE_CATEGORY_COUNT = 6
+const LOBBY_REFRESH_MS = 15000
+
+function prettySlug(slug: string): string {
+  return slug.charAt(0).toUpperCase() + slug.slice(1)
+}
 
 export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [categories, setCategories] = useState<LeaderboardCategory[]>([])
@@ -81,6 +87,9 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [joinLinkError, setJoinLinkError] = useState<string | null>(null)
   const [acceptsPlayers, setAcceptsPlayers] = useState(true)
   const [acceptsSpectators, setAcceptsSpectators] = useState(true)
+  const [publicLobbies, setPublicLobbies] = useState<PublicLobbyEntry[]>([])
+  const [loadingLobbies, setLoadingLobbies] = useState(false)
+  const [lobbyListError, setLobbyListError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -94,6 +103,38 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || mode !== 'multi' || multiSubMode !== 'join' || joinInvite) {
+      return
+    }
+
+    let cancelled = false
+
+    async function loadLobbies() {
+      setLoadingLobbies(true)
+      try {
+        const list = await listPublicLobbies()
+        if (!cancelled) {
+          setPublicLobbies(list)
+          setLobbyListError(null)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLobbyListError(err instanceof Error ? err.message : 'Өрөөнүүдийг татаж чадсангүй')
+        }
+      } finally {
+        if (!cancelled) setLoadingLobbies(false)
+      }
+    }
+
+    void loadLobbies()
+    const id = window.setInterval(() => void loadLobbies(), LOBBY_REFRESH_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [mode, multiSubMode, joinInvite])
 
   // Consume deep link once: keep PIN/invite in the form, clean the address bar.
   useEffect(() => {
@@ -244,9 +285,9 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     }
   }
 
-  async function handleJoinRoom(asSpectator = false) {
-    const pin = normalizeJoinPin(joinPin)
-    const invite = normalizeInviteSecret(joinInvite)
+  async function handleJoinRoom(asSpectator = false, pinOverride?: string) {
+    const pin = normalizeJoinPin(pinOverride ?? joinPin)
+    const invite = pinOverride ? '' : normalizeInviteSecret(joinInvite)
     if (!hasNickname || (!pin && !invite)) return
     setMultiBusy(true)
     setMultiError(null)
@@ -265,6 +306,12 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     } finally {
       setMultiBusy(false)
     }
+  }
+
+  function handleSelectLobby(pin: string) {
+    setJoinPin(pin)
+    setJoinInvite('')
+    if (hasNickname) void handleJoinRoom(false, pin)
   }
 
   return (
@@ -385,6 +432,73 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
                 </h2>
               </div>
               <div className="mx-auto max-w-xl p-5 sm:p-7">
+                {!joinInvite && (
+                  <div className="mb-6">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <SectionLabel className="mb-0">Идэвхтэй нээлттэй өрөөнүүд</SectionLabel>
+                      <button
+                        type="button"
+                        disabled={loadingLobbies}
+                        onClick={() => {
+                          setLobbyListError(null)
+                          void listPublicLobbies()
+                            .then((list) => setPublicLobbies(list))
+                            .catch((err) =>
+                              setLobbyListError(
+                                err instanceof Error ? err.message : 'Өрөөнүүдийг татаж чадсангүй',
+                              ),
+                            )
+                        }}
+                        className="text-xs font-bold text-cyan hover:underline disabled:opacity-50"
+                      >
+                        {loadingLobbies ? 'Шинэчилж байна…' : 'Шинэчлэх'}
+                      </button>
+                    </div>
+                    {lobbyListError ? (
+                      <StatusMessage variant="error">{lobbyListError}</StatusMessage>
+                    ) : loadingLobbies && publicLobbies.length === 0 ? (
+                      <div className="flex items-center gap-2 text-sm text-muted">
+                        <EqualizerBars className="h-4" /> Өрөөнүүдийг хайж байна…
+                      </div>
+                    ) : publicLobbies.length === 0 ? (
+                      <p className="rounded-xl border border-border bg-base px-4 py-3 text-sm text-muted">
+                        Одоогоор нээлттэй лобби алга. PIN оруулах эсвэл өөрөө өрөө нээнэ үү.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {publicLobbies.map((lobby) => {
+                          const categoryName =
+                            categories.find((item) => item.slug === lobby.category)?.name ??
+                            lobby.category
+                          return (
+                            <li key={lobby.id}>
+                              <button
+                                type="button"
+                                disabled={multiBusy}
+                                onClick={() => handleSelectLobby(lobby.pin)}
+                                className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-base px-4 py-3 text-left transition hover:border-cyan/40 hover:bg-raised disabled:opacity-50"
+                              >
+                                <div className="min-w-0">
+                                  <div className="truncate font-bold text-ink">
+                                    {categoryName} · {prettySlug(lobby.artistSlug)}
+                                  </div>
+                                  <div className="text-xs text-muted">
+                                    {lobby.rounds} раунд · {lobby.timePerRound}с ·{' '}
+                                    {lobby.playerCount} тоглогч
+                                  </div>
+                                </div>
+                                <span className="shrink-0 font-mono text-sm font-extrabold tracking-wider text-cyan">
+                                  {lobby.pin}
+                                </span>
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid gap-3 sm:grid-cols-[1fr_0.85fr] sm:items-end">
                   <label className="block text-left text-sm font-bold text-muted" htmlFor="room-pin">
                     Өрөөний код

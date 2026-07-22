@@ -39,7 +39,7 @@ npm run dev                  # http://localhost:5173
    - `supabase/rooms.sql` → `rooms-game.sql` → `rooms-polish.sql` → `rooms-auth.sql` →
      `rooms-leaderboard.sql` → `rooms-private-spectators.sql` → `rooms-profiles.sql` →
      `rooms-rematch.sql` → `rooms-rls-auth-host.sql` → `rooms-rate-limits.sql` →
-     `rooms-rls-participant-fix.sql` — multiplayer through Auth-only host,
+     `rooms-rls-participant-fix.sql` → `rooms-discovery.sql` — multiplayer through Auth-only host,
      participant SELECT RLS, rematch, profiles, private invites, spectators,
      and RPC rate limits.
 
