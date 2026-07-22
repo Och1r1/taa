@@ -158,8 +158,8 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 
 - [x] `profiles` table (display name, optional avatar) + light UI.
 - [ ] Magic-link / email sign-in (optional upgrade from anonymous).
-- [ ] Remove `host_token` fallback; Auth-only host checks.
-- [ ] Tighten RLS SELECT to room participants (rethink Realtime filters).
+- [x] Remove `host_token` fallback; Auth-only host checks.
+- [x] Tighten RLS SELECT to room participants (hybrid: peeks/joins via RPC; Realtime for seated players).
 - [ ] Rate limits on create, join, answer, rematch, invite validation.
 
 ### Product polish
@@ -200,3 +200,4 @@ After base catalog / leaderboard SQL:
 6. `supabase/rooms-private-spectators.sql`
 7. `supabase/rooms-profiles.sql`
 8. `supabase/rooms-rematch.sql`
+9. `supabase/rooms-rls-auth-host.sql`

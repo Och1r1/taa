@@ -105,7 +105,7 @@ export type RoomPlayerRole = 'player' | 'spectator'
 
 export type RematchStatus = 'pending' | 'completed' | 'cancelled'
 
-/** Public room row (host_token is never exposed on this shape). */
+/** Public room row synced via Realtime and REST. */
 export interface GameRoom {
   id: string
   pin: string
@@ -152,8 +152,6 @@ export interface MultiSession {
   role: RoomPlayerRole
   /** Private-room invite for lobby QR / rejoin. */
   inviteSecret: string | null
-  /** Only present for the host; required for host-only RPCs later. */
-  hostToken: string | null
 }
 
 /** One option row stored on a multiplayer round (DB snake_case mapped in API). */

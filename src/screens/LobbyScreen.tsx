@@ -66,8 +66,8 @@ export function LobbyScreen({
     setBusy(true)
     setActionError(null)
     try {
-      if (session.isHost && session.hostToken) {
-        await closeRoom(session.roomId, session.hostToken)
+      if (session.isHost) {
+        await closeRoom(session.roomId)
       } else {
         await leaveRoom(session.roomId, session.playerId)
       }
@@ -78,11 +78,11 @@ export function LobbyScreen({
   }
 
   async function handleStart() {
-    if (!session.isHost || !session.hostToken || !room) return
+    if (!session.isHost || !room) return
     setStarting(true)
     setActionError(null)
     try {
-      await beginRoomCountdown(session.roomId, session.hostToken, COUNTDOWN_SECONDS)
+      await beginRoomCountdown(session.roomId, COUNTDOWN_SECONDS)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Эхлүүлж чадсангүй')
       setStarting(false)
@@ -90,11 +90,11 @@ export function LobbyScreen({
   }
 
   async function handleKick(playerId: string) {
-    if (!session.isHost || !session.hostToken) return
+    if (!session.isHost) return
     setKickingId(playerId)
     setActionError(null)
     try {
-      await kickRoomPlayer(session.roomId, session.hostToken, playerId)
+      await kickRoomPlayer(session.roomId, playerId)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Тоглогчийг хасч чадсангүй')
     } finally {
@@ -103,11 +103,11 @@ export function LobbyScreen({
   }
 
   async function handleRotateInvite() {
-    if (!session.isHost || !session.hostToken) return
+    if (!session.isHost) return
     setRotating(true)
     setActionError(null)
     try {
-      const next = await rotateRoomInvite(session.roomId, session.hostToken)
+      const next = await rotateRoomInvite(session.roomId)
       setInviteSecret(next.inviteSecret)
       saveMultiSession({ ...session, inviteSecret: next.inviteSecret })
     } catch (err) {
@@ -186,7 +186,7 @@ export function LobbyScreen({
                   {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
                 </button>
               )}
-              {session.isHost && visibility === 'private' && session.hostToken && (
+              {session.isHost && visibility === 'private' && (
                 <button
                   type="button"
                   disabled={rotating}
@@ -242,7 +242,7 @@ export function LobbyScreen({
               const online = onlineIds.has(player.id)
               const initial = (player.nickname || '?').slice(0, 1).toLocaleUpperCase()
               const canKick =
-                session.isHost && session.hostToken && !player.isHost && player.id !== session.playerId
+                session.isHost && !player.isHost && player.id !== session.playerId
               return (
                 <li
                   key={player.id}
@@ -306,7 +306,7 @@ export function LobbyScreen({
                 {spectators.map((player) => {
                   const isYou = player.id === session.playerId
                   const canKick =
-                    session.isHost && session.hostToken && player.id !== session.playerId
+                    session.isHost && player.id !== session.playerId
                   return (
                     <li
                       key={player.id}
