@@ -64,16 +64,27 @@ export async function fetchTopScores(artistSlug: string, limit = 10): Promise<Sc
   return ((data ?? []) as ScoreRow[]).map(toEntry)
 }
 
-/** One ordered page of saved category scores (solo + multi together). */
+export type ScoreModeFilter = 'solo' | 'multi'
+
+/** One ordered page of saved category scores; optional solo/multi filter. */
 export async function fetchTopScoresForCategory(
   category: Category,
-  offset = 0,
-  pageSize = 50,
+  options: { offset?: number; pageSize?: number; mode?: ScoreModeFilter } = {},
 ): Promise<ScorePage> {
-  const { data, error } = await supabase
+  const { offset = 0, pageSize = 50, mode } = options
+  let query = supabase
     .from('scores')
     .select(SCORE_COLUMNS)
     .eq('category', category)
+
+  if (mode === 'multi') {
+    query = query.eq('mode', 'multi')
+  } else if (mode === 'solo') {
+    // Legacy rows with null mode count as solo.
+    query = query.or('mode.eq.solo,mode.is.null')
+  }
+
+  const { data, error } = await query
     .order('points', { ascending: false })
     .order('created_at', { ascending: true })
     .range(offset, offset + pageSize)

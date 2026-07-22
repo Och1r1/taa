@@ -38,7 +38,7 @@ Playability reorder used in practice: QR → rematch polish → thin Auth → mu
 ### Scope
 
 - [x] Add Supabase Auth sign-in flow, initially using anonymous sign-in.
-- [ ] Create a `profiles` table for display names and optional avatar metadata.
+- [x] Create a `profiles` table for display names and optional avatar metadata.
 - [x] Associate room hosts and players with authenticated user IDs.
 - [x] Replace host-token-only authorization with Auth-aware host checks.
 - [x] Preserve the current host token as a temporary migration fallback.
@@ -156,7 +156,7 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 
 ### Auth & security
 
-- [ ] `profiles` table (display name, optional avatar) + light UI.
+- [x] `profiles` table (display name, optional avatar) + light UI.
 - [ ] Magic-link / email sign-in (optional upgrade from anonymous).
 - [ ] Remove `host_token` fallback; Auth-only host checks.
 - [ ] Tighten RLS SELECT to room participants (rethink Realtime filters).
@@ -165,7 +165,7 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 ### Product polish
 
 - [ ] Full new-room rematch with accept/decline + timeout.
-- [ ] Leaderboard mode filter (All / Solo / Хамтдаа).
+- [x] Leaderboard mode filter (All / Solo / Хамтдаа).
 - [ ] Room discovery list (public lobbies only; never private).
 - [ ] Invite rotate UI confirmations + copy feedback polish.
 - [ ] Spectator capacity controls editable by host.
@@ -198,3 +198,4 @@ After base catalog / leaderboard SQL:
 4. `supabase/rooms-auth.sql` — enable Anonymous Sign-Ins first
 5. `supabase/rooms-leaderboard.sql`
 6. `supabase/rooms-private-spectators.sql`
+7. `supabase/rooms-profiles.sql`

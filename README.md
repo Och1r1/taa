@@ -37,8 +37,9 @@ npm run dev                  # http://localhost:5173
    - `supabase/category-catalog.sql` — creates the active-category catalog used by the
      leaderboard. Run this after `media.sql` and `category-leaderboard.sql`.
    - `supabase/rooms.sql` → `rooms-game.sql` → `rooms-polish.sql` → `rooms-auth.sql` →
-     `rooms-leaderboard.sql` → `rooms-private-spectators.sql` — multiplayer rooms through
-     Auth, score export, private invite links, and spectator seats.
+     `rooms-leaderboard.sql` → `rooms-private-spectators.sql` → `rooms-profiles.sql` —
+     multiplayer rooms through Auth, score export, private invite links, spectator seats,
+     and display-name profiles.
 
 That's it — reload the app and start a game.
 

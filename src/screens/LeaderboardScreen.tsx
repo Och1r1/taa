@@ -2,11 +2,19 @@ import { useEffect, useState } from 'react'
 import type { Category, LeaderboardCategory, ScoreEntry } from '../types'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchCategories } from '../api/categories'
-import { fetchTopScoresForCategory } from '../api/scores'
+import { fetchTopScoresForCategory, type ScoreModeFilter } from '../api/scores'
 import { isSupabaseConfigured } from '../lib/supabase'
 
 const RANK = ['🥇', '🥈', '🥉']
 const VISIBLE_CATEGORY_COUNT = 5
+
+type ModeFilter = 'all' | ScoreModeFilter
+
+const MODE_FILTERS: { id: ModeFilter; label: string }[] = [
+  { id: 'all', label: 'Бүгд' },
+  { id: 'solo', label: 'Ганцаар' },
+  { id: 'multi', label: 'Хамтдаа' },
+]
 
 /** Capitalize an artist slug for display (e.g. "morningstar" → "Morningstar"). */
 function prettyArtist(slug: string): string {
@@ -16,6 +24,7 @@ function prettyArtist(slug: string): string {
 export function LeaderboardScreen() {
   const [categories, setCategories] = useState<LeaderboardCategory[]>([])
   const [category, setCategory] = useState<Category | null>(() => categoryFromUrl())
+  const [modeFilter, setModeFilter] = useState<ModeFilter>(() => modeFromUrl())
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [showMore, setShowMore] = useState(false)
@@ -53,7 +62,9 @@ export function LeaderboardScreen() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    fetchTopScoresForCategory(category)
+    fetchTopScoresForCategory(category, {
+      mode: modeFilter === 'all' ? undefined : modeFilter,
+    })
       .then((page) => {
         if (cancelled) return
         setScores(page.entries)
@@ -64,7 +75,7 @@ export function LeaderboardScreen() {
     return () => {
       cancelled = true
     }
-  }, [category])
+  }, [category, modeFilter])
 
   const selectedCategory = categories.find((item) => item.slug === category)
   const visibleCategories = categories.slice(0, VISIBLE_CATEGORY_COUNT)
@@ -73,20 +84,35 @@ export function LeaderboardScreen() {
     `${item.name} ${item.slug}`.toLocaleLowerCase().includes(categorySearch.toLocaleLowerCase()),
   )
 
+  function writeUrl(nextCategory: Category | null, nextMode: ModeFilter) {
+    const url = new URL(window.location.href)
+    if (nextCategory) url.searchParams.set('category', nextCategory)
+    else url.searchParams.delete('category')
+    if (nextMode === 'all') url.searchParams.delete('mode')
+    else url.searchParams.set('mode', nextMode)
+    window.history.replaceState({}, '', url)
+  }
+
   function selectCategory(slug: Category) {
     setCategory(slug)
     setShowMore(false)
     setCategorySearch('')
-    const url = new URL(window.location.href)
-    url.searchParams.set('category', slug)
-    window.history.replaceState({}, '', url)
+    writeUrl(slug, modeFilter)
+  }
+
+  function selectMode(next: ModeFilter) {
+    setModeFilter(next)
+    writeUrl(category, next)
   }
 
   async function loadMoreScores() {
     if (!category || loadingMore || !hasMore) return
     setLoadingMore(true)
     try {
-      const page = await fetchTopScoresForCategory(category, scores.length)
+      const page = await fetchTopScoresForCategory(category, {
+        offset: scores.length,
+        mode: modeFilter === 'all' ? undefined : modeFilter,
+      })
       setScores((current) => [...current, ...page.entries])
       setHasMore(page.hasMore)
     } catch (err) {
@@ -183,6 +209,25 @@ export function LeaderboardScreen() {
         </div>
       )}
 
+      <div className="mb-6 flex flex-wrap gap-2" aria-label="Тоглоомын горим">
+        {MODE_FILTERS.map((item) => {
+          const selected = item.id === modeFilter
+          return (
+            <button
+              key={item.id}
+              onClick={() => selectMode(item.id)}
+              className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
+                selected
+                  ? 'border-pink/60 bg-pink/10 text-ink'
+                  : 'border-border bg-surface text-muted hover:bg-raised hover:text-ink'
+              }`}
+            >
+              {item.label}
+            </button>
+          )
+        })}
+      </div>
+
       {!isSupabaseConfigured ? (
         <p className="rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
           ⚠ Supabase тохируулаагүй байна.
@@ -248,4 +293,10 @@ export function LeaderboardScreen() {
 
 function categoryFromUrl(): Category | null {
   return new URLSearchParams(window.location.search).get('category')
+}
+
+function modeFromUrl(): ModeFilter {
+  const value = new URLSearchParams(window.location.search).get('mode')
+  if (value === 'solo' || value === 'multi') return value
+  return 'all'
 }

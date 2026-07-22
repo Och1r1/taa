@@ -4,6 +4,7 @@ import { CategoryCard } from '../components/CategoryCard'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
+import { resolveDisplayName, updateDisplayName } from '../api/auth'
 import { createRoom, joinRoom, peekRoomByInvite, peekRoomByPin } from '../api/rooms'
 import {
   clearJoinPinFromUrl,
@@ -55,6 +56,8 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [rounds, setRounds] = useState(5)
   const [timePerRound, setTimePerRound] = useState(15)
   const [nickname, setNickname] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState<string | null>(null)
   const [joinPin, setJoinPin] = useState(() => readJoinParamsFromUrl().pin ?? '')
   const [joinInvite, setJoinInvite] = useState(() => readJoinParamsFromUrl().invite ?? '')
   const [roomVisibility, setRoomVisibility] = useState<RoomVisibility>('public')
@@ -63,6 +66,16 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [joinLinkError, setJoinLinkError] = useState<string | null>(null)
   const [acceptsPlayers, setAcceptsPlayers] = useState(true)
   const [acceptsSpectators, setAcceptsSpectators] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    void resolveDisplayName().then((name) => {
+      if (!cancelled && name) setNickname(name)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Consume deep link once: keep PIN/invite in the form, clean the address bar.
   useEffect(() => {
@@ -154,11 +167,36 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const canStart = Boolean(selectedCategory && selected && selected.songCount >= MIN_SONGS)
   const hasNickname = nickname.trim().length >= 2
 
+  async function persistDisplayName(raw: string) {
+    const trimmed = raw.trim().slice(0, 24)
+    if (trimmed.length < 2) return
+    try {
+      await updateDisplayName(trimmed)
+    } catch {
+      // Room actions can still proceed; profile SQL may not be applied yet.
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!hasNickname || profileSaving) return
+    setProfileSaving(true)
+    setProfileMessage(null)
+    try {
+      await updateDisplayName(nickname)
+      setProfileMessage('Нэр хадгалагдлаа')
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : 'Нэр хадгалж чадсангүй')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
   async function handleCreateRoom() {
     if (!selectedArtist || !selectedCategory || !canStart || !hasNickname) return
     setMultiBusy(true)
     setMultiError(null)
     try {
+      await persistDisplayName(nickname)
       const result = await createRoom({
         hostNickname: nickname,
         artistSlug: selectedArtist,
@@ -182,6 +220,7 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     setMultiError(null)
     setJoinLinkError(null)
     try {
+      await persistDisplayName(nickname)
       const result = await joinRoom({
         pin,
         invite,
@@ -208,6 +247,38 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
           сонгоод эхэл.
         </p>
       </div>
+
+      <section className="mb-8 max-w-md">
+        <label className="block text-sm font-bold text-muted" htmlFor="display-name">
+          Таны нэр
+          <div className="mt-2 flex gap-2">
+            <input
+              id="display-name"
+              value={nickname}
+              onChange={(event) => {
+                setNickname(event.target.value)
+                setProfileMessage(null)
+              }}
+              maxLength={24}
+              placeholder="Тоглоомын нэр"
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-ink outline-none focus:border-cyan/60"
+            />
+            <Button
+              variant="ghost"
+              className="shrink-0 px-4 py-3 text-sm"
+              disabled={!hasNickname || profileSaving}
+              onClick={() => void handleSaveProfile()}
+            >
+              {profileSaving ? '…' : 'Хадгалах'}
+            </Button>
+          </div>
+        </label>
+        {profileMessage && (
+          <p className={`mt-2 text-sm ${profileMessage.includes('хадгалагдлаа') ? 'text-cyan' : 'text-pink'}`}>
+            {profileMessage}
+          </p>
+        )}
+      </section>
 
       {/* Mode toggle */}
       <div className="mb-6 inline-flex rounded-xl border border-border bg-surface p-1">
