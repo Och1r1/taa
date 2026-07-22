@@ -34,6 +34,9 @@ interface RoomRow {
   countdown_ends_at?: string | null
   visibility?: RoomVisibility | null
   invite_secret?: string | null
+  rematch_room_id?: string | null
+  rematch_deadline?: string | null
+  rematch_status?: string | null
 }
 
 interface PlayerRow {
@@ -109,6 +112,12 @@ function randomToken(): string {
 }
 
 function toRoom(row: RoomRow): GameRoom {
+  const rematchStatus =
+    row.rematch_status === 'pending' ||
+    row.rematch_status === 'completed' ||
+    row.rematch_status === 'cancelled'
+      ? row.rematch_status
+      : null
   return {
     id: row.id,
     pin: row.pin,
@@ -125,6 +134,9 @@ function toRoom(row: RoomRow): GameRoom {
     countdownEndsAt: row.countdown_ends_at ?? null,
     visibility: row.visibility === 'private' ? 'private' : 'public',
     inviteSecret: row.invite_secret ?? null,
+    rematchRoomId: row.rematch_room_id ?? null,
+    rematchDeadline: row.rematch_deadline ?? null,
+    rematchStatus,
   }
 }
 
@@ -184,7 +196,7 @@ function toAnswer(row: AnswerRow): RoomAnswer {
 function rpcMessage(error: { message: string }): string {
   const raw = error.message
   const match = raw.match(
-    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Authentication required|Private room requires invite|Invalid invite|Spectator limit reached|Spectators cannot answer|Room is not accepting spectators|Invalid visibility/i,
+    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Authentication required|Private room requires invite|Invalid invite|Spectator limit reached|Spectators cannot answer|Room is not accepting spectators|Invalid visibility|Game is not finished|Rematch already proposed|No rematch pending|Rematch timed out|Use propose_rematch|Host seat not found|Rematch room not found/i,
   )
   if (match) return match[0]
   if (raw.includes('duplicate key') || raw.includes('rooms_pin')) return 'PIN already in use'
@@ -467,14 +479,18 @@ export async function fetchRoom(roomId: string): Promise<GameRoom | null> {
   const { data, error } = await supabase
     .from('rooms')
     .select(
-      'id, pin, status, host_player_id, artist_slug, category, rounds, time_per_round, max_points, current_round_index, created_at, expires_at, countdown_ends_at, visibility',
+      'id, pin, status, host_player_id, artist_slug, category, rounds, time_per_round, max_points, current_round_index, created_at, expires_at, countdown_ends_at, visibility, rematch_room_id, rematch_deadline, rematch_status',
     )
     .eq('id', roomId)
     .maybeSingle()
 
   if (error) {
     // Older DBs before rooms-polish.sql may lack countdown_ends_at.
-    if (error.message.includes('countdown_ends_at') || error.message.includes('visibility')) {
+    if (
+      error.message.includes('countdown_ends_at') ||
+      error.message.includes('visibility') ||
+      error.message.includes('rematch_')
+    ) {
       const fallback = await supabase
         .from('rooms')
         .select(
@@ -483,7 +499,15 @@ export async function fetchRoom(roomId: string): Promise<GameRoom | null> {
         .eq('id', roomId)
         .maybeSingle()
       if (fallback.error) throw new Error(`Өрөөг татаж чадсангүй: ${fallback.error.message}`)
-      return fallback.data ? toRoom({ ...(fallback.data as RoomRow), countdown_ends_at: null }) : null
+      return fallback.data
+        ? toRoom({
+            ...(fallback.data as RoomRow),
+            countdown_ends_at: null,
+            rematch_room_id: null,
+            rematch_deadline: null,
+            rematch_status: null,
+          })
+        : null
     }
     throw new Error(`Өрөөг татаж чадсангүй: ${error.message}`)
   }
@@ -616,14 +640,87 @@ export async function finishRoomGame(roomId: string, hostToken: string): Promise
   if (error) throw new Error(`Тоглоом дуусгаж чадсангүй: ${rpcMessage(error)}`)
 }
 
-/** Host clears a finished room so the same players can start a rematch. */
-export async function restartRoomGame(roomId: string, hostToken: string): Promise<void> {
+/** Host opens a new lobby and a timed accept window for rematch. */
+export async function proposeRematch(
+  roomId: string,
+  hostToken: string,
+  timeoutSeconds = 60,
+): Promise<RoomJoinResult> {
   await ensureAnonymousUser()
-  const { error } = await supabase.rpc('restart_room_game', {
+  const { data, error } = await supabase.rpc('propose_rematch', {
     p_room_id: roomId,
     p_host_token: hostToken,
+    p_timeout_seconds: timeoutSeconds,
   })
-  if (error) throw new Error(`Дахин эхлүүлж чадсангүй: ${rpcMessage(error)}`)
+  if (error) throw new Error(`Дахин тоглох санал амжилтгүй: ${rpcMessage(error)}`)
+
+  const payload = normalizeRpcPayload(data) as CreateRoomRpc | null
+  if (!payload?.room?.id || !payload?.player?.id || !payload.host_token) {
+    throw new Error('Дахин тоглох санал амжилтгүй: серверийн хариу буруу байна')
+  }
+
+  const room = toRoom({
+    ...payload.room,
+    invite_secret: payload.invite_secret ?? payload.room.invite_secret ?? null,
+  })
+  const player = toPlayer(payload.player)
+  const session: MultiSession = {
+    roomId: room.id,
+    pin: room.pin,
+    playerId: player.id,
+    nickname: player.nickname,
+    isHost: true,
+    role: 'player',
+    inviteSecret: room.inviteSecret,
+    hostToken: payload.host_token,
+  }
+  saveMultiSession(session)
+  return { room, player, session }
+}
+
+/** Accept or decline a pending rematch; accept returns a new MultiSession. */
+export async function respondRematch(
+  roomId: string,
+  accept: boolean,
+): Promise<{ accepted: false } | RoomJoinResult> {
+  await ensureAnonymousUser()
+  const { data, error } = await supabase.rpc('respond_rematch', {
+    p_room_id: roomId,
+    p_accept: accept,
+  })
+  if (error) throw new Error(`Хариу илгээж чадсангүй: ${rpcMessage(error)}`)
+
+  const payload = normalizeRpcPayload(data) as {
+    accepted?: boolean
+    room?: RoomRow
+    player?: PlayerRow
+    invite_secret?: string | null
+  } | null
+
+  if (!payload?.accepted) {
+    return { accepted: false }
+  }
+  if (!payload.room?.id || !payload.player?.id) {
+    throw new Error('Хариу илгээж чадсангүй: серверийн хариу буруу байна')
+  }
+
+  const room = toRoom({
+    ...payload.room,
+    invite_secret: payload.invite_secret ?? payload.room.invite_secret ?? null,
+  })
+  const player = toPlayer(payload.player)
+  const session: MultiSession = {
+    roomId: room.id,
+    pin: room.pin,
+    playerId: player.id,
+    nickname: player.nickname,
+    isHost: player.isHost,
+    role: player.role,
+    inviteSecret: room.inviteSecret,
+    hostToken: null,
+  }
+  saveMultiSession(session)
+  return { room, player, session }
 }
 
 /** Host starts a synced 3-2-1 countdown before the next round. */

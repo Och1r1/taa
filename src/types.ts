@@ -103,6 +103,8 @@ export type RoomVisibility = 'public' | 'private'
 
 export type RoomPlayerRole = 'player' | 'spectator'
 
+export type RematchStatus = 'pending' | 'completed' | 'cancelled'
+
 /** Public room row (host_token is never exposed on this shape). */
 export interface GameRoom {
   id: string
@@ -122,6 +124,9 @@ export interface GameRoom {
   visibility: RoomVisibility
   /** Present for private rooms when the host (or invite peek) knows the secret. */
   inviteSecret: string | null
+  rematchRoomId: string | null
+  rematchDeadline: string | null
+  rematchStatus: RematchStatus | null
 }
 
 /** One player seated in a multiplayer room. */

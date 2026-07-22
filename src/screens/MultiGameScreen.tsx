@@ -3,14 +3,15 @@ import { EqualizerBars } from '../components/EqualizerBars'
 import { MediaStage } from '../components/MediaStage'
 import { OptionCard } from '../components/OptionCard'
 import { TimerBar } from '../components/TimerBar'
-import { closeRoom, leaveRoom } from '../api/rooms'
+import { closeRoom, leaveRoom, respondRematch } from '../api/rooms'
 import { useMultiGame } from '../game/useMultiGame'
 import type { MultiSession, RoundOutcome, Song } from '../types'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface Props {
   session: MultiSession
   onLeave: () => void
+  onSessionChange: (session: MultiSession) => void
 }
 
 const OUTCOME_LABEL: Record<RoundOutcome, string> = {
@@ -20,10 +21,30 @@ const OUTCOME_LABEL: Record<RoundOutcome, string> = {
   skipped: 'Алгассан',
 }
 
+function rematchSecondsLeft(deadline: string | null): number {
+  if (!deadline) return 0
+  return Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 1000))
+}
+
 /** Synced multiplayer play + podium. Host auto-advances rounds. */
-export function MultiGameScreen({ session, onLeave }: Props) {
+export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
   const game = useMultiGame(session)
   const [leaving, setLeaving] = useState(false)
+  const [rematchBusy, setRematchBusy] = useState(false)
+  const [rematchDeclined, setRematchDeclined] = useState(false)
+  const [rematchError, setRematchError] = useState<string | null>(null)
+  const [rematchLeft, setRematchLeft] = useState(0)
+
+  useEffect(() => {
+    if (game.room?.status !== 'finished' || game.room.rematchStatus !== 'pending') {
+      setRematchLeft(0)
+      return
+    }
+    const tick = () => setRematchLeft(rematchSecondsLeft(game.room?.rematchDeadline ?? null))
+    tick()
+    const id = window.setInterval(tick, 250)
+    return () => window.clearInterval(id)
+  }, [game.room?.status, game.room?.rematchDeadline, game.room?.rematchStatus])
 
   async function handleLeave() {
     setLeaving(true)
@@ -36,6 +57,28 @@ export function MultiGameScreen({ session, onLeave }: Props) {
       onLeave()
     } catch {
       onLeave()
+    }
+  }
+
+  async function handleProposeRematch() {
+    const next = await game.proposeRematch()
+    if (next) onSessionChange(next)
+  }
+
+  async function handleRespondRematch(accept: boolean) {
+    setRematchBusy(true)
+    setRematchError(null)
+    try {
+      const result = await respondRematch(session.roomId, accept)
+      if (!('session' in result)) {
+        setRematchDeclined(true)
+        return
+      }
+      onSessionChange(result.session)
+    } catch (err) {
+      setRematchError(err instanceof Error ? err.message : 'Хариу илгээж чадсангүй')
+    } finally {
+      setRematchBusy(false)
     }
   }
 
@@ -58,8 +101,6 @@ export function MultiGameScreen({ session, onLeave }: Props) {
   }
 
   if (game.room.status === 'lobby') {
-    // Parent MultiSessionGate switches to LobbyScreen on lobby status; this is
-    // only a brief handoff while Realtime catches up after rematch.
     return (
       <Centered>
         <EqualizerBars className="mb-4 h-10" />
@@ -69,25 +110,65 @@ export function MultiGameScreen({ session, onLeave }: Props) {
   }
 
   if (game.room.status === 'finished') {
+    const rematchPending = game.room.rematchStatus === 'pending' && Boolean(game.room.rematchRoomId)
+    const rematchOpen = rematchPending && rematchLeft > 0 && !rematchDeclined
+    const rematchTimedOut = rematchPending && rematchLeft <= 0
+
     return (
       <div className="mx-auto w-full max-w-2xl px-6 py-10">
         <p className="text-xs font-bold uppercase tracking-widest text-muted-2">Хамтдаа · дүн</p>
         <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Тоглоом дууслаа</h1>
         <p className="mt-2 text-muted">
           {session.isHost
-            ? 'Эцсийн онооны самбар. Оноо Тэргүүлэгчид рүү хадгалагдсан. Дахин тоглох үед лобби руу буцна.'
-            : 'Эцсийн онооны самбар. Хөтлөгч дахин эхлүүлэхийг хүлээнэ үү.'}
+            ? 'Эцсийн онооны самбар. Дахин тоглох нь шинэ өрөө нээнэ — бусад тоглогчид зөвшөөрнө.'
+            : 'Эцсийн онооны самбар. Хөтлөгч дахин тоглох санал илгээхийг хүлээнэ үү.'}
         </p>
 
-        {game.error && (
+        {(game.error || rematchError) && (
           <p className="mt-4 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
-            {game.error}
+            {game.error ?? rematchError}
           </p>
         )}
 
-        {!session.isHost && (
+        {!session.isHost && !rematchPending && (
           <p className="mt-4 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-3 text-sm text-cyan">
-            Хөтлөгч «Дахин тоглох» дармагц лобби руу буцна.
+            Хөтлөгч «Дахин тоглох» дармагц шинэ өрөөний санал ирнэ.
+          </p>
+        )}
+
+        {rematchOpen && !session.isHost && (
+          <div className="mt-4 rounded-xl border border-pink/40 bg-pink/10 px-4 py-4">
+            <p className="font-bold text-ink">Дахин тоглох санал ирлээ</p>
+            <p className="mt-1 text-sm text-muted">
+              Шинэ лобби руу нэгдэх үү? Үлдсэн хугацаа: {rematchLeft}с
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button disabled={rematchBusy} onClick={() => void handleRespondRematch(true)}>
+                {rematchBusy ? '…' : 'Зөвшөөрөх'}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={rematchBusy}
+                onClick={() => void handleRespondRematch(false)}
+              >
+                Татгалзах
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {(rematchDeclined || rematchTimedOut) && !session.isHost && (
+          <p className="mt-4 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted">
+            {rematchDeclined
+              ? 'Та дахин тоглохоос татгалзлаа.'
+              : 'Дахин тоглох хугацаа дууссан.'}
+          </p>
+        )}
+
+        {session.isHost && rematchPending && (
+          <p className="mt-4 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-3 text-sm text-cyan">
+            Шинэ өрөө нээгдсэн. Тоглогчид зөвшөөрөхийг хүлээж байна
+            {rematchLeft > 0 ? ` (${rematchLeft}с)` : ''}.
           </p>
         )}
 
@@ -128,9 +209,9 @@ export function MultiGameScreen({ session, onLeave }: Props) {
         </ol>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          {session.isHost && (
-            <Button disabled={game.starting} onClick={() => void game.restartGame()}>
-              {game.starting ? 'Лобби руу буцаж байна…' : 'Дахин тоглох'}
+          {session.isHost && !rematchPending && (
+            <Button disabled={game.starting} onClick={() => void handleProposeRematch()}>
+              {game.starting ? 'Шинэ өрөө нээж байна…' : 'Дахин тоглох'}
             </Button>
           )}
           <Button variant="ghost" onClick={onLeave}>
