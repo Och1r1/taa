@@ -166,7 +166,7 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 
 - [x] Full new-room rematch with accept/decline + timeout.
 - [x] Leaderboard mode filter (All / Solo / Хамтдаа).
-- [ ] Room discovery list (public lobbies only; never private).
+- [x] Room discovery list (public lobbies only; never private).
 - [ ] Invite rotate UI confirmations + copy feedback polish.
 - [ ] Spectator capacity controls editable by host.
 
@@ -203,3 +203,4 @@ After base catalog / leaderboard SQL:
 9. `supabase/rooms-rls-auth-host.sql`
 10. `supabase/rooms-rate-limits.sql`
 11. `supabase/rooms-rls-participant-fix.sql` — fixes room_players RLS recursion
+12. `supabase/rooms-discovery.sql`
