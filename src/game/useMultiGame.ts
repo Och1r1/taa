@@ -350,24 +350,23 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
 
   const publishRound = useCallback(
     async (roundIndex: number) => {
-      if (!session.hostToken) return
+      if (!session.isHost) return
       const pool = poolRef.current
       if (pool.length < 4) throw new Error('Багцад хангалттай асуулт алга')
       const { song, options } = makeRoundPick(pool, usedIdsRef.current)
       usedIdsRef.current = [...usedIdsRef.current, song.id]
       await startRoomRound({
         roomId: session.roomId,
-        hostToken: session.hostToken,
         roundIndex,
         song,
         options,
       })
     },
-    [session.hostToken, session.roomId],
+    [session.isHost, session.roomId],
   )
 
   const startGame = useCallback(async () => {
-    if (!session.isHost || !session.hostToken || !room) return
+    if (!session.isHost || !room) return
     setStarting(true)
     setError(null)
     try {
@@ -375,29 +374,29 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       if (pool.length < 4) throw new Error('Багцад дор хаяж 4 асуулт хэрэгтэй')
       poolRef.current = pool
       usedIdsRef.current = []
-      await beginRoomCountdown(session.roomId, session.hostToken, COUNTDOWN_SECONDS)
+      await beginRoomCountdown(session.roomId, COUNTDOWN_SECONDS)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Эхлүүлж чадсангүй')
     } finally {
       setStarting(false)
     }
-  }, [session.isHost, session.hostToken, session.roomId, room])
+  }, [session.isHost, session.roomId, room])
 
   const endGame = useCallback(async () => {
-    if (!session.isHost || !session.hostToken) return
+    if (!session.isHost) return
     try {
-      await finishRoomGame(session.roomId, session.hostToken)
+      await finishRoomGame(session.roomId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Дуусгаж чадсангүй')
     }
-  }, [session.isHost, session.hostToken, session.roomId])
+  }, [session.isHost, session.roomId])
 
   const proposeRematchAction = useCallback(async () => {
-    if (!session.isHost || !session.hostToken || !room) return null
+    if (!session.isHost || !room) return null
     setStarting(true)
     setError(null)
     try {
-      const result = await proposeRematch(session.roomId, session.hostToken)
+      const result = await proposeRematch(session.roomId)
       return result.session
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Дахин тоглох санал амжилтгүй')
@@ -405,7 +404,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     } finally {
       setStarting(false)
     }
-  }, [room, session.hostToken, session.isHost, session.roomId])
+  }, [room, session.isHost, session.roomId])
 
   const answer = useCallback(
     async (songId: string) => {
@@ -442,7 +441,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
 
   // Host: auto-reveal
   useEffect(() => {
-    if (!session.isHost || !session.hostToken) return
+    if (!session.isHost) return
     if (!room || room.status !== 'playing' || !round || round.status !== 'active') return
 
     // The host is the stage controller, not an answer pad. Counting the host
@@ -462,14 +461,13 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     if (revealingRef.current) return
     revealingRef.current = true
 
-    void revealRoomRound(session.roomId, session.hostToken, round.roundIndex)
+    void revealRoomRound(session.roomId, round.roundIndex)
       .catch((err: Error) => setError(err.message))
       .finally(() => {
         revealingRef.current = false
       })
   }, [
     session.isHost,
-    session.hostToken,
     session.roomId,
     room,
     round,
@@ -480,12 +478,11 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
 
   // Host: reveal hold → countdown or finish
   useEffect(() => {
-    if (!session.isHost || !session.hostToken) return
+    if (!session.isHost) return
     if (!room || room.status !== 'revealing' || !round || round.status !== 'revealed') return
     if (advancingRef.current) return
 
     advancingRef.current = true
-    const hostToken = session.hostToken
     const roomId = session.roomId
     const nextIndex = room.currentRoundIndex + 1
     const total = room.rounds
@@ -493,8 +490,8 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          if (nextIndex >= total) await finishRoomGame(roomId, hostToken)
-          else await beginRoomCountdown(roomId, hostToken, COUNTDOWN_SECONDS)
+          if (nextIndex >= total) await finishRoomGame(roomId)
+          else await beginRoomCountdown(roomId, COUNTDOWN_SECONDS)
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Дараагийн алхам амжилтгүй')
         } finally {
@@ -507,11 +504,11 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       window.clearTimeout(timer)
       advancingRef.current = false
     }
-  }, [session.isHost, session.hostToken, session.roomId, room, round])
+  }, [session.isHost, session.roomId, room, round])
 
   // Host: countdown finished → publish round
   useEffect(() => {
-    if (!session.isHost || !session.hostToken) return
+    if (!session.isHost) return
     if (!room || room.status !== 'countdown' || !room.countdownEndsAt) return
     if (countdownLeft > 0.05) return
     if (publishedCountdownRef.current === room.countdownEndsAt) return
@@ -544,7 +541,6 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     })()
   }, [
     session.isHost,
-    session.hostToken,
     session.roomId,
     room,
     round,

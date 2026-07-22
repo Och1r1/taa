@@ -81,7 +81,6 @@ interface AnswerRow {
 interface CreateRoomRpc {
   room: RoomRow
   player: PlayerRow
-  host_token: string
   invite_secret?: string | null
 }
 
@@ -103,12 +102,6 @@ const SESSION_KEY = 'taa.multi.session'
 
 function randomPin(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
-}
-
-function randomToken(): string {
-  const bytes = new Uint8Array(24)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 function toRoom(row: RoomRow): GameRoom {
@@ -256,7 +249,6 @@ export interface RoomJoinResult {
 /** Create a lobby room and seat the host. Retries a few times on PIN collision. */
 export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult> {
   await ensureAnonymousUser()
-  const hostToken = randomToken()
   const nickname = input.hostNickname.trim().slice(0, 24)
   const visibility = input.visibility ?? 'public'
   let lastError: Error | null = null
@@ -265,7 +257,6 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
     const pin = randomPin()
     const rpcArgs: Record<string, string | number> = {
       p_pin: pin,
-      p_host_token: hostToken,
       p_host_nickname: nickname,
       p_artist_slug: input.artistSlug,
       p_category: input.category,
@@ -303,7 +294,7 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
     }
 
     const payload = normalizeRpcPayload(data) as CreateRoomRpc | null
-    if (!payload?.room?.id || !payload?.player?.id || !payload.host_token) {
+    if (!payload?.room?.id || !payload?.player?.id) {
       throw new Error('Өрөө үүсгэж чадсангүй: серверийн хариу буруу байна')
     }
 
@@ -320,7 +311,6 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
       isHost: true,
       role: 'player',
       inviteSecret: room.inviteSecret,
-      hostToken: payload.host_token,
     }
     saveMultiSession(session)
     return { room, player, session }
@@ -395,7 +385,6 @@ export async function joinRoom(input: JoinRoomInput | string, nicknameArg?: stri
     isHost: Boolean(player.isHost),
     role: player.role,
     inviteSecret: room.visibility === 'private' ? invite : null,
-    hostToken: null,
   }
   saveMultiSession(session)
   return { room, player, session }
@@ -418,11 +407,10 @@ export async function peekRoomByInvite(invite: string): Promise<RoomPeek> {
   return toPeek(normalizeRpcPayload(data))
 }
 
-export async function rotateRoomInvite(roomId: string, hostToken: string): Promise<GameRoom> {
+export async function rotateRoomInvite(roomId: string): Promise<GameRoom> {
   await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('rotate_room_invite', {
     p_room_id: roomId,
-    p_host_token: hostToken,
   })
   if (error) throw new Error(`Урилга шинэчилж чадсангүй: ${rpcMessage(error)}`)
   const payload = normalizeRpcPayload(data) as { room: RoomRow; invite_secret?: string } | null
@@ -465,11 +453,10 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<void>
 }
 
 /** Host closes the room for everyone. */
-export async function closeRoom(roomId: string, hostToken: string): Promise<void> {
+export async function closeRoom(roomId: string): Promise<void> {
   await ensureAnonymousUser()
   const { error } = await supabase.rpc('close_room', {
     p_room_id: roomId,
-    p_host_token: hostToken,
   })
   clearMultiSession()
   if (error) throw new Error(`Өрөөг хааж чадсангүй: ${rpcMessage(error)}`)
@@ -569,7 +556,6 @@ export async function fetchRoundAnswers(
 
 export interface StartRoundInput {
   roomId: string
-  hostToken: string
   roundIndex: number
   song: Song
   options: RoomRoundOption[]
@@ -580,7 +566,6 @@ export async function startRoomRound(input: StartRoundInput): Promise<RoomRound>
   await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('start_room_round', {
     p_room_id: input.roomId,
-    p_host_token: input.hostToken,
     p_round_index: input.roundIndex,
     p_answer_song_id: input.song.id,
     p_answer_title: input.song.title,
@@ -616,26 +601,20 @@ export async function submitRoomAnswer(
 }
 
 /** Host locks the round, applies timeouts + scores, moves room to revealing. */
-export async function revealRoomRound(
-  roomId: string,
-  hostToken: string,
-  roundIndex: number,
-): Promise<void> {
+export async function revealRoomRound(roomId: string, roundIndex: number): Promise<void> {
   await ensureAnonymousUser()
   const { error } = await supabase.rpc('reveal_room_round', {
     p_room_id: roomId,
-    p_host_token: hostToken,
     p_round_index: roundIndex,
   })
   if (error) throw new Error(`Раунд илчилж чадсангүй: ${rpcMessage(error)}`)
 }
 
 /** Host marks the game finished after the last reveal. */
-export async function finishRoomGame(roomId: string, hostToken: string): Promise<void> {
+export async function finishRoomGame(roomId: string): Promise<void> {
   await ensureAnonymousUser()
   const { error } = await supabase.rpc('finish_room_game', {
     p_room_id: roomId,
-    p_host_token: hostToken,
   })
   if (error) throw new Error(`Тоглоом дуусгаж чадсангүй: ${rpcMessage(error)}`)
 }
@@ -643,19 +622,17 @@ export async function finishRoomGame(roomId: string, hostToken: string): Promise
 /** Host opens a new lobby and a timed accept window for rematch. */
 export async function proposeRematch(
   roomId: string,
-  hostToken: string,
   timeoutSeconds = 60,
 ): Promise<RoomJoinResult> {
   await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('propose_rematch', {
     p_room_id: roomId,
-    p_host_token: hostToken,
     p_timeout_seconds: timeoutSeconds,
   })
   if (error) throw new Error(`Дахин тоглох санал амжилтгүй: ${rpcMessage(error)}`)
 
   const payload = normalizeRpcPayload(data) as CreateRoomRpc | null
-  if (!payload?.room?.id || !payload?.player?.id || !payload.host_token) {
+  if (!payload?.room?.id || !payload?.player?.id) {
     throw new Error('Дахин тоглох санал амжилтгүй: серверийн хариу буруу байна')
   }
 
@@ -672,7 +649,6 @@ export async function proposeRematch(
     isHost: true,
     role: 'player',
     inviteSecret: room.inviteSecret,
-    hostToken: payload.host_token,
   }
   saveMultiSession(session)
   return { room, player, session }
@@ -717,22 +693,16 @@ export async function respondRematch(
     isHost: player.isHost,
     role: player.role,
     inviteSecret: room.inviteSecret,
-    hostToken: null,
   }
   saveMultiSession(session)
   return { room, player, session }
 }
 
 /** Host starts a synced 3-2-1 countdown before the next round. */
-export async function beginRoomCountdown(
-  roomId: string,
-  hostToken: string,
-  seconds = 3,
-): Promise<GameRoom> {
+export async function beginRoomCountdown(roomId: string, seconds = 3): Promise<GameRoom> {
   await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('begin_room_countdown', {
     p_room_id: roomId,
-    p_host_token: hostToken,
     p_seconds: seconds,
   })
   if (error) throw new Error(`Countdown эхлүүлж чадсангүй: ${rpcMessage(error)}`)
@@ -750,30 +720,20 @@ export async function heartbeatRoomPlayer(roomId: string, playerId: string): Pro
 }
 
 /** Host removes one guest from the room. */
-export async function kickRoomPlayer(
-  roomId: string,
-  hostToken: string,
-  playerId: string,
-): Promise<void> {
+export async function kickRoomPlayer(roomId: string, playerId: string): Promise<void> {
   await ensureAnonymousUser()
   const { error } = await supabase.rpc('kick_room_player', {
     p_room_id: roomId,
-    p_host_token: hostToken,
     p_player_id: playerId,
   })
   if (error) throw new Error(`Тоглогчийг хасч чадсангүй: ${rpcMessage(error)}`)
 }
 
 /** Host drops guests whose last_seen is older than idleSeconds. */
-export async function pruneIdleRoomPlayers(
-  roomId: string,
-  hostToken: string,
-  idleSeconds = 90,
-): Promise<number> {
+export async function pruneIdleRoomPlayers(roomId: string, idleSeconds = 90): Promise<number> {
   await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('prune_idle_room_players', {
     p_room_id: roomId,
-    p_host_token: hostToken,
     p_idle_seconds: idleSeconds,
   })
   if (error) throw new Error(`Idle prune амжилтгүй: ${rpcMessage(error)}`)

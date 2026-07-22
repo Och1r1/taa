@@ -49,8 +49,8 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
   async function handleLeave() {
     setLeaving(true)
     try {
-      if (session.isHost && session.hostToken) {
-        await closeRoom(session.roomId, session.hostToken)
+      if (session.isHost) {
+        await closeRoom(session.roomId)
       } else {
         await leaveRoom(session.roomId, session.playerId)
       }

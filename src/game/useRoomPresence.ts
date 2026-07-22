@@ -44,10 +44,9 @@ export function useRoomPresence(
     }, 5_000)
 
     let pruneId: number | undefined
-    if (session.isHost && session.hostToken) {
-      const token = session.hostToken
+    if (session.isHost) {
       pruneId = window.setInterval(() => {
-        void pruneIdleRoomPlayers(session.roomId, token, IDLE_SECONDS).catch(() => {
+        void pruneIdleRoomPlayers(session.roomId, IDLE_SECONDS).catch(() => {
           /* ignore */
         })
       }, PRUNE_MS)
@@ -59,7 +58,7 @@ export function useRoomPresence(
       window.clearInterval(clockId)
       if (pruneId) window.clearInterval(pruneId)
     }
-  }, [enabled, session.roomId, session.playerId, session.isHost, session.hostToken])
+  }, [enabled, session.roomId, session.playerId, session.isHost])
 
   // If we were kicked, last_seen won't matter — parent clears session.
   const onlineIds = new Set(
