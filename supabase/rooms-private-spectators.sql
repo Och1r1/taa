@@ -85,6 +85,11 @@ end;
 $$;
 
 -- ── create_room (visibility + invite) ───────────────────────────────────────
+-- Must DROP first: CREATE OR REPLACE cannot remove/change parameter defaults
+-- on the existing 8-arg create_room from rooms-auth.sql.
+drop function if exists public.create_room(text, text, text, text, text, integer, integer, integer);
+drop function if exists public.create_room(text, text, text, text, text, integer, integer, integer, text);
+
 create or replace function public.create_room(
   p_pin text,
   p_host_token text,
@@ -156,6 +161,9 @@ end;
 $$;
 
 -- ── join as player (lobby only; private needs invite) ───────────────────────
+drop function if exists public.join_room(text, text);
+drop function if exists public.join_room(text, text, text);
+
 create or replace function public.join_room(
   p_pin text,
   p_nickname text,
@@ -566,46 +574,5 @@ grant execute on function public.peek_room_by_pin(text) to anon, authenticated;
 grant execute on function public.peek_room_by_invite(text) to anon, authenticated;
 grant execute on function public.submit_room_answer(uuid, uuid, integer, uuid) to anon, authenticated;
 grant execute on function public.finish_room_game(uuid, text) to anon, authenticated;
-
--- Keep legacy create_room(… 8 args) callable by regenerating with default visibility via overload:
--- PostgREST may still call the 8-arg form; provide a thin wrapper.
-create or replace function public.create_room(
-  p_pin text,
-  p_host_token text,
-  p_host_nickname text,
-  p_artist_slug text,
-  p_category text,
-  p_rounds integer,
-  p_time_per_round integer,
-  p_max_points integer
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  return public.create_room(
-    p_pin, p_host_token, p_host_nickname, p_artist_slug, p_category,
-    p_rounds, p_time_per_round, p_max_points, 'public'
-  );
-end;
-$$;
-
-grant execute on function public.create_room(text, text, text, text, text, integer, integer, integer) to anon, authenticated;
-
--- Legacy 2-arg join (public PIN only).
-create or replace function public.join_room(p_pin text, p_nickname text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  return public.join_room(p_pin, p_nickname, null);
-end;
-$$;
-
-grant execute on function public.join_room(text, text) to anon, authenticated;
 
 notify pgrst, 'reload schema';
