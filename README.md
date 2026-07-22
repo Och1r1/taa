@@ -36,6 +36,9 @@ npm run dev                  # http://localhost:5173
      backfills existing scores. Run this after `media.sql` for an existing project.
    - `supabase/category-catalog.sql` — creates the active-category catalog used by the
      leaderboard. Run this after `media.sql` and `category-leaderboard.sql`.
+   - `supabase/rooms.sql` → `rooms-game.sql` → `rooms-polish.sql` → `rooms-auth.sql` —
+     multiplayer rooms, synced rounds, lobby polish, then Auth-bound player seats
+     (`room_players.user_id`). `rooms-auth.sql` requires Anonymous Sign-Ins.
 
 That's it — reload the app and start a game.
 

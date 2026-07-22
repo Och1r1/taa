@@ -25,8 +25,8 @@ export const supabase = createClient(
 )
 
 /**
- * Ensure multiplayer requests have a Supabase identity. Anonymous accounts let
- * guests play without a sign-up while allowing room RPCs to safely identify them.
+ * @deprecated Prefer `ensureAnonymousUser` from `src/api/auth.ts`.
+ * Kept for older call sites; anonymous accounts let guests play without sign-up.
  */
 export async function ensureMultiplayerSession(): Promise<void> {
   if (!isSupabaseConfigured) {

@@ -1,4 +1,5 @@
-import { ensureMultiplayerSession, supabase } from '../lib/supabase'
+import { ensureAnonymousUser } from './auth'
+import { supabase } from '../lib/supabase'
 import { resolveMediaUrl } from './songs'
 import type {
   Category,
@@ -165,7 +166,7 @@ function toAnswer(row: AnswerRow): RoomAnswer {
 function rpcMessage(error: { message: string }): string {
   const raw = error.message
   const match = raw.match(
-    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Player not in room/i,
+    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Authentication required/i,
   )
   if (match) return match[0]
   if (raw.includes('duplicate key') || raw.includes('rooms_pin')) return 'PIN already in use'
@@ -218,7 +219,7 @@ export interface RoomJoinResult {
 
 /** Create a lobby room and seat the host. Retries a few times on PIN collision. */
 export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult> {
-  await ensureMultiplayerSession()
+  await ensureAnonymousUser()
   const hostToken = randomToken()
   const nickname = input.hostNickname.trim().slice(0, 24)
   let lastError: Error | null = null
@@ -272,7 +273,7 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
 
 /** Join an existing lobby by PIN + nickname. */
 export async function joinRoom(pin: string, nickname: string): Promise<RoomJoinResult> {
-  await ensureMultiplayerSession()
+  await ensureAnonymousUser()
   const cleanedPin = pin.replace(/\D/g, '').slice(0, 6)
   const { data, error } = await supabase.rpc('join_room', {
     p_pin: cleanedPin,
@@ -293,7 +294,7 @@ export async function joinRoom(pin: string, nickname: string): Promise<RoomJoinR
     pin: room.pin,
     playerId: player.id,
     nickname: player.nickname,
-    isHost: false,
+    isHost: Boolean(player.isHost),
     hostToken: null,
   }
   saveMultiSession(session)
@@ -302,6 +303,7 @@ export async function joinRoom(pin: string, nickname: string): Promise<RoomJoinR
 
 /** Leave the lobby. Host leave closes the room for everyone. */
 export async function leaveRoom(roomId: string, playerId: string): Promise<void> {
+  await ensureAnonymousUser()
   const { error } = await supabase.rpc('leave_room', {
     p_room_id: roomId,
     p_player_id: playerId,
@@ -312,6 +314,7 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<void>
 
 /** Host closes the room for everyone. */
 export async function closeRoom(roomId: string, hostToken: string): Promise<void> {
+  await ensureAnonymousUser()
   const { error } = await supabase.rpc('close_room', {
     p_room_id: roomId,
     p_host_token: hostToken,
@@ -399,6 +402,7 @@ export interface StartRoundInput {
 
 /** Host publishes the next synced round (answer + options + media + deadline). */
 export async function startRoomRound(input: StartRoundInput): Promise<RoomRound> {
+  await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('start_room_round', {
     p_room_id: input.roomId,
     p_host_token: input.hostToken,
@@ -424,6 +428,7 @@ export async function submitRoomAnswer(
   roundIndex: number,
   pickedSongId: string,
 ): Promise<RoomAnswer> {
+  await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('submit_room_answer', {
     p_room_id: roomId,
     p_player_id: playerId,
@@ -441,6 +446,7 @@ export async function revealRoomRound(
   hostToken: string,
   roundIndex: number,
 ): Promise<void> {
+  await ensureAnonymousUser()
   const { error } = await supabase.rpc('reveal_room_round', {
     p_room_id: roomId,
     p_host_token: hostToken,
@@ -451,6 +457,7 @@ export async function revealRoomRound(
 
 /** Host marks the game finished after the last reveal. */
 export async function finishRoomGame(roomId: string, hostToken: string): Promise<void> {
+  await ensureAnonymousUser()
   const { error } = await supabase.rpc('finish_room_game', {
     p_room_id: roomId,
     p_host_token: hostToken,
@@ -460,6 +467,7 @@ export async function finishRoomGame(roomId: string, hostToken: string): Promise
 
 /** Host clears a finished room so the same players can start a rematch. */
 export async function restartRoomGame(roomId: string, hostToken: string): Promise<void> {
+  await ensureAnonymousUser()
   const { error } = await supabase.rpc('restart_room_game', {
     p_room_id: roomId,
     p_host_token: hostToken,
@@ -473,6 +481,7 @@ export async function beginRoomCountdown(
   hostToken: string,
   seconds = 3,
 ): Promise<GameRoom> {
+  await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('begin_room_countdown', {
     p_room_id: roomId,
     p_host_token: hostToken,
@@ -484,6 +493,7 @@ export async function beginRoomCountdown(
 
 /** Touch last_seen so the host can prune disconnected guests. */
 export async function heartbeatRoomPlayer(roomId: string, playerId: string): Promise<void> {
+  await ensureAnonymousUser()
   const { error } = await supabase.rpc('heartbeat_room_player', {
     p_room_id: roomId,
     p_player_id: playerId,
@@ -497,6 +507,7 @@ export async function kickRoomPlayer(
   hostToken: string,
   playerId: string,
 ): Promise<void> {
+  await ensureAnonymousUser()
   const { error } = await supabase.rpc('kick_room_player', {
     p_room_id: roomId,
     p_host_token: hostToken,
@@ -511,6 +522,7 @@ export async function pruneIdleRoomPlayers(
   hostToken: string,
   idleSeconds = 90,
 ): Promise<number> {
+  await ensureAnonymousUser()
   const { data, error } = await supabase.rpc('prune_idle_room_players', {
     p_room_id: roomId,
     p_host_token: hostToken,
