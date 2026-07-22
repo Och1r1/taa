@@ -164,7 +164,7 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 
 ### Product polish
 
-- [ ] Full new-room rematch with accept/decline + timeout.
+- [x] Full new-room rematch with accept/decline + timeout.
 - [x] Leaderboard mode filter (All / Solo / Хамтдаа).
 - [ ] Room discovery list (public lobbies only; never private).
 - [ ] Invite rotate UI confirmations + copy feedback polish.
@@ -181,7 +181,7 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 
 - [x] Guests remain anonymous (no required sign-up).
 - [x] Private rooms: invite link only (not PIN alone).
-- [x] Rematch for now: same-room restart; roster preserved in lobby.
+- [x] Rematch: new-room propose + accept/decline + timeout (same-room restart retired).
 - [x] Solo + multi share one leaderboard with a Хамтдаа badge.
 - [x] Spectators can see media (full stage, read-only).
 - [ ] When to require real (non-anonymous) accounts for ranked multi scores.
@@ -199,3 +199,4 @@ After base catalog / leaderboard SQL:
 5. `supabase/rooms-leaderboard.sql`
 6. `supabase/rooms-private-spectators.sql`
 7. `supabase/rooms-profiles.sql`
+8. `supabase/rooms-rematch.sql`

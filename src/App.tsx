@@ -98,7 +98,13 @@ export default function App() {
       return (
         <div>
           <Header active="home" onNavigate={navigate} />
-          <MultiSessionGate session={multiSession} onLeave={leaveMulti} />
+          <MultiSessionGate
+            session={multiSession}
+            onLeave={leaveMulti}
+            onSessionChange={(next) => {
+              setMultiSession(next)
+            }}
+          />
         </div>
       )
     }
@@ -125,9 +131,11 @@ export default function App() {
 function MultiSessionGate({
   session,
   onLeave,
+  onSessionChange,
 }: {
   session: MultiSession
   onLeave: () => void
+  onSessionChange: (session: MultiSession) => void
 }) {
   const { room, players, loading, error } = useRoomLobby(session.roomId)
 
@@ -139,7 +147,14 @@ function MultiSessionGate({
       room.status === 'finished')
 
   if (inGame) {
-    return <MultiGameScreen session={session} onLeave={onLeave} />
+    return (
+      <MultiGameScreen
+        key={session.roomId}
+        session={session}
+        onLeave={onLeave}
+        onSessionChange={onSessionChange}
+      />
+    )
   }
 
   // Always render lobby chrome — never a blank gate while loading/error.
@@ -156,6 +171,7 @@ function MultiSessionGate({
 
   return (
     <LobbyScreen
+      key={session.roomId}
       session={session}
       room={room}
       players={players}

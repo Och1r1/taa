@@ -69,7 +69,16 @@ export function useRoomLobby(roomId: string | null): LobbyState {
             expires_at: string
             countdown_ends_at?: string | null
             visibility?: string | null
+            rematch_room_id?: string | null
+            rematch_deadline?: string | null
+            rematch_status?: string | null
           }
+          const rematchStatus =
+            row.rematch_status === 'pending' ||
+            row.rematch_status === 'completed' ||
+            row.rematch_status === 'cancelled'
+              ? row.rematch_status
+              : null
           setRoom({
             id: row.id,
             pin: row.pin,
@@ -86,6 +95,9 @@ export function useRoomLobby(roomId: string | null): LobbyState {
             countdownEndsAt: row.countdown_ends_at ?? null,
             visibility: row.visibility === 'private' ? 'private' : 'public',
             inviteSecret: null,
+            rematchRoomId: row.rematch_room_id ?? null,
+            rematchDeadline: row.rematch_deadline ?? null,
+            rematchStatus,
           })
         },
       )

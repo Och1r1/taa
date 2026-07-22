@@ -7,7 +7,7 @@ import {
   fetchRoundAnswers,
   finishRoomGame,
   revealRoomRound,
-  restartRoomGame,
+  proposeRematch,
   startRoomRound,
   submitRoomAnswer,
   toRound,
@@ -45,7 +45,7 @@ export interface MultiGameState {
 
 export interface MultiGameApi extends MultiGameState {
   startGame: () => Promise<void>
-  restartGame: () => Promise<void>
+  proposeRematch: () => Promise<MultiSession | null>
   answer: (songId: string) => Promise<void>
   endGame: () => Promise<void>
   rankedPlayers: RoomPlayer[]
@@ -66,7 +66,16 @@ function mapRoomRow(row: {
   expires_at: string
   countdown_ends_at?: string | null
   visibility?: string | null
+  rematch_room_id?: string | null
+  rematch_deadline?: string | null
+  rematch_status?: string | null
 }): GameRoom {
+  const rematchStatus =
+    row.rematch_status === 'pending' ||
+    row.rematch_status === 'completed' ||
+    row.rematch_status === 'cancelled'
+      ? row.rematch_status
+      : null
   return {
     id: row.id,
     pin: row.pin,
@@ -83,6 +92,9 @@ function mapRoomRow(row: {
     countdownEndsAt: row.countdown_ends_at ?? null,
     visibility: row.visibility === 'private' ? 'private' : 'public',
     inviteSecret: null,
+    rematchRoomId: row.rematch_room_id ?? null,
+    rematchDeadline: row.rematch_deadline ?? null,
+    rematchStatus,
   }
 }
 
@@ -380,24 +392,16 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     }
   }, [session.isHost, session.hostToken, session.roomId])
 
-  const restartGame = useCallback(async () => {
-    if (!session.isHost || !session.hostToken || !room) return
+  const proposeRematchAction = useCallback(async () => {
+    if (!session.isHost || !session.hostToken || !room) return null
     setStarting(true)
     setError(null)
     try {
-      // Reset to lobby so everyone can rejoin the seating flow. The host starts
-      // the next match from LobbyScreen when the party is ready.
-      await restartRoomGame(session.roomId, session.hostToken)
-      poolRef.current = []
-      usedIdsRef.current = []
-      publishedCountdownRef.current = null
-      revealingRef.current = false
-      advancingRef.current = false
-      setRound(null)
-      setAnswers([])
-      setError(null)
+      const result = await proposeRematch(session.roomId, session.hostToken)
+      return result.session
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Дахин эхлүүлж чадсангүй')
+      setError(err instanceof Error ? err.message : 'Дахин тоглох санал амжилтгүй')
+      return null
     } finally {
       setStarting(false)
     }
@@ -596,7 +600,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     answerError,
     reconnected,
     startGame,
-    restartGame,
+    proposeRematch: proposeRematchAction,
     answer,
     endGame,
     rankedPlayers,
