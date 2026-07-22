@@ -30,60 +30,55 @@ revoke all on function public.assert_host(uuid) from public;
 grant execute on function public.assert_host(uuid) to anon, authenticated;
 
 -- ── Hybrid SELECT RLS ───────────────────────────────────────────────────────
+-- Membership check must be SECURITY DEFINER so policies don't recurse into
+-- room_players while evaluating room_players SELECT.
+create or replace function public.is_room_participant(p_room_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.room_players
+    where room_id = p_room_id
+      and user_id = auth.uid()
+  );
+$$;
+
+revoke all on function public.is_room_participant(uuid) from public;
+grant execute on function public.is_room_participant(uuid) to anon, authenticated;
+
 drop policy if exists "rooms are readable by everyone" on public.rooms;
 drop policy if exists "rooms readable by participants" on public.rooms;
 create policy "rooms readable by participants"
   on public.rooms for select
-  using (
-    exists (
-      select 1 from public.room_players rp
-      where rp.room_id = rooms.id and rp.user_id = auth.uid()
-    )
-  );
+  using (public.is_room_participant(id));
 
 drop policy if exists "room players are readable by everyone" on public.room_players;
 drop policy if exists "room players readable by participants" on public.room_players;
 create policy "room players readable by participants"
   on public.room_players for select
-  using (
-    exists (
-      select 1 from public.room_players self
-      where self.room_id = room_players.room_id and self.user_id = auth.uid()
-    )
-  );
+  using (public.is_room_participant(room_id));
 
 drop policy if exists "room rounds are readable by everyone" on public.room_rounds;
 drop policy if exists "room rounds readable by participants" on public.room_rounds;
 create policy "room rounds readable by participants"
   on public.room_rounds for select
-  using (
-    exists (
-      select 1 from public.room_players rp
-      where rp.room_id = room_rounds.room_id and rp.user_id = auth.uid()
-    )
-  );
+  using (public.is_room_participant(room_id));
 
 drop policy if exists "room answers are readable by everyone" on public.room_answers;
 drop policy if exists "room answers readable by participants" on public.room_answers;
 create policy "room answers readable by participants"
   on public.room_answers for select
-  using (
-    exists (
-      select 1 from public.room_players rp
-      where rp.room_id = room_answers.room_id and rp.user_id = auth.uid()
-    )
-  );
+  using (public.is_room_participant(room_id));
 
 drop policy if exists "rematch votes readable by everyone" on public.room_rematch_votes;
 drop policy if exists "rematch votes readable by participants" on public.room_rematch_votes;
 create policy "rematch votes readable by participants"
   on public.room_rematch_votes for select
-  using (
-    exists (
-      select 1 from public.room_players rp
-      where rp.room_id = room_rematch_votes.room_id and rp.user_id = auth.uid()
-    )
-  );
+  using (public.is_room_participant(room_id));
 
 -- ── create_room without host_token ──────────────────────────────────────────
 drop function if exists public.create_room(text, text, text, text, text, integer, integer, integer);
