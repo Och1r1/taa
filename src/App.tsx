@@ -10,12 +10,13 @@ import { LobbyScreen } from './screens/LobbyScreen'
 import { MultiGameScreen } from './screens/MultiGameScreen'
 import { Header, type NavView } from './components/Header'
 import { Button } from './components/Button'
-import { readJoinPinFromUrl } from './lib/joinUrl'
+import { readJoinParamsFromUrl } from './lib/joinUrl'
 import type { MultiSession } from './types'
 
 function initialNavView(): NavView {
+  const join = readJoinParamsFromUrl()
   // Join deep links always open home (Хамтдаа), even if ?category= is also present.
-  if (readJoinPinFromUrl() || /^\/join(\/|$)/i.test(window.location.pathname)) return 'home'
+  if (join.pin || join.invite || /^\/join(\/|$)/i.test(window.location.pathname)) return 'home'
   return new URLSearchParams(window.location.search).has('category') ? 'leaderboard' : 'home'
 }
 

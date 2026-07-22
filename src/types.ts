@@ -99,6 +99,10 @@ export interface ScoreEntry {
 /** Lobby / in-progress multiplayer room status. */
 export type RoomStatus = 'lobby' | 'countdown' | 'playing' | 'revealing' | 'finished' | 'closed'
 
+export type RoomVisibility = 'public' | 'private'
+
+export type RoomPlayerRole = 'player' | 'spectator'
+
 /** Public room row (host_token is never exposed on this shape). */
 export interface GameRoom {
   id: string
@@ -115,6 +119,9 @@ export interface GameRoom {
   expiresAt: string
   /** When status is countdown, clients count down to this timestamp. */
   countdownEndsAt: string | null
+  visibility: RoomVisibility
+  /** Present for private rooms when the host (or invite peek) knows the secret. */
+  inviteSecret: string | null
 }
 
 /** One player seated in a multiplayer room. */
@@ -123,6 +130,7 @@ export interface RoomPlayer {
   roomId: string
   nickname: string
   isHost: boolean
+  role: RoomPlayerRole
   score: number
   correctCount: number
   joinedAt: string
@@ -136,6 +144,9 @@ export interface MultiSession {
   playerId: string
   nickname: string
   isHost: boolean
+  role: RoomPlayerRole
+  /** Private-room invite for lobby QR / rejoin. */
+  inviteSecret: string | null
   /** Only present for the host; required for host-only RPCs later. */
   hostToken: string | null
 }

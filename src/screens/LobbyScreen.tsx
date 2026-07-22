@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
-import { beginRoomCountdown, closeRoom, kickRoomPlayer, leaveRoom } from '../api/rooms'
+import { beginRoomCountdown, closeRoom, kickRoomPlayer, leaveRoom, rotateRoomInvite, saveMultiSession } from '../api/rooms'
 import { useRoomPresence } from '../game/useRoomPresence'
-import { buildJoinUrl } from '../lib/joinUrl'
+import { buildRoomShareUrl } from '../lib/joinUrl'
 import type { GameRoom, MultiSession, RoomPlayer } from '../types'
 
 interface Props {
@@ -32,16 +32,25 @@ export function LobbyScreen({
   const [kickingId, setKickingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'pin' | 'link' | null>(null)
+  const [inviteSecret, setInviteSecret] = useState<string | null>(session.inviteSecret)
+  const [rotating, setRotating] = useState(false)
 
   const closed = Boolean(!loading && (!room || room.status === 'closed'))
   const pin = room?.pin ?? session.pin
-  const joinUrl = (() => {
+  const visibility = room?.visibility ?? (inviteSecret ? 'private' : 'public')
+  const shareUrl = (() => {
     try {
-      return buildJoinUrl(pin)
+      return buildRoomShareUrl({
+        pin,
+        visibility,
+        inviteSecret: visibility === 'private' ? inviteSecret : null,
+      })
     } catch {
       return null
     }
   })()
+  const seatedPlayers = players.filter((player) => player.role !== 'spectator')
+  const spectators = players.filter((player) => player.role === 'spectator')
   const presenceEnabled = Boolean(room && room.status === 'lobby' && !closed)
   const { onlineIds } = useRoomPresence(session, players, presenceEnabled)
 
@@ -90,6 +99,21 @@ export function LobbyScreen({
       setActionError(err instanceof Error ? err.message : 'Тоглогчийг хасч чадсангүй')
     } finally {
       setKickingId(null)
+    }
+  }
+
+  async function handleRotateInvite() {
+    if (!session.isHost || !session.hostToken) return
+    setRotating(true)
+    setActionError(null)
+    try {
+      const next = await rotateRoomInvite(session.roomId, session.hostToken)
+      setInviteSecret(next.inviteSecret)
+      saveMultiSession({ ...session, inviteSecret: next.inviteSecret })
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Урилга шинэчилж чадсангүй')
+    } finally {
+      setRotating(false)
     }
   }
 
@@ -144,23 +168,38 @@ export function LobbyScreen({
               {pin}
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => void copyText('pin', pin)}
-                className="text-sm font-bold text-cyan hover:underline"
-              >
-                {copied === 'pin' ? 'Хуулагдлаа ✓' : 'PIN хуулах'}
-              </button>
-              {joinUrl && (
+              {visibility === 'public' && (
                 <button
                   type="button"
-                  onClick={() => void copyText('link', joinUrl)}
+                  onClick={() => void copyText('pin', pin)}
+                  className="text-sm font-bold text-cyan hover:underline"
+                >
+                  {copied === 'pin' ? 'Хуулагдлаа ✓' : 'PIN хуулах'}
+                </button>
+              )}
+              {shareUrl && (
+                <button
+                  type="button"
+                  onClick={() => void copyText('link', shareUrl)}
                   className="text-sm font-bold text-cyan hover:underline"
                 >
                   {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
                 </button>
               )}
+              {session.isHost && visibility === 'private' && session.hostToken && (
+                <button
+                  type="button"
+                  disabled={rotating}
+                  onClick={() => void handleRotateInvite()}
+                  className="text-sm font-bold text-pink hover:underline disabled:opacity-50"
+                >
+                  {rotating ? 'Шинэчилж байна…' : 'Урилга шинэчлэх'}
+                </button>
+              )}
             </div>
+            <p className="mt-3 text-xs font-bold uppercase tracking-widest text-muted-2">
+              {visibility === 'private' ? 'Хувийн өрөө' : 'Нийтийн өрөө'}
+            </p>
             {room && (
               <p className="mt-4 text-sm text-muted">
                 {room.artistSlug} · {room.rounds} раунд · {room.timePerRound}с
@@ -168,22 +207,24 @@ export function LobbyScreen({
             )}
           </div>
 
-          {session.isHost && joinUrl && (
+          {session.isHost && shareUrl && (
             <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-6 sm:flex-row sm:items-start sm:gap-6 sm:p-8">
               <div className="rounded-xl bg-white p-3">
-                <QRCodeSVG value={joinUrl} size={160} marginSize={0} title="Өрөөнд нэгдэх QR" />
+                <QRCodeSVG value={shareUrl} size={160} marginSize={0} title="Өрөөнд нэгдэх QR" />
               </div>
               <div className="min-w-0 flex-1 text-center sm:text-left">
                 <div className="text-xs font-bold uppercase tracking-widest text-muted-2">
                   QR-аар нэгдэх
                 </div>
                 <p className="mt-2 text-sm text-muted">
-                  Утасны камераар уншуулаад нэрийгээ оруулаад орно.
+                  {visibility === 'private'
+                    ? 'Урилгын холбоос — PIN-аар орж болохгүй.'
+                    : 'Утасны камераар уншуулаад нэрийгээ оруулаад орно.'}
                 </p>
-                <p className="mt-3 break-all font-mono text-xs text-muted-2">{joinUrl}</p>
+                <p className="mt-3 break-all font-mono text-xs text-muted-2">{shareUrl}</p>
                 <button
                   type="button"
-                  onClick={() => void copyText('link', joinUrl)}
+                  onClick={() => void copyText('link', shareUrl)}
                   className="mt-3 text-sm font-bold text-cyan hover:underline"
                 >
                   {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
@@ -193,10 +234,10 @@ export function LobbyScreen({
           )}
 
           <div className="mb-3 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
-            Тоглогчид ({players.length}/20)
+            Тоглогчид ({seatedPlayers.length}/20)
           </div>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {players.map((player) => {
+            {seatedPlayers.map((player) => {
               const isYou = player.id === session.playerId
               const online = onlineIds.has(player.id)
               const initial = (player.nickname || '?').slice(0, 1).toLocaleUpperCase()
@@ -251,10 +292,46 @@ export function LobbyScreen({
                 </li>
               )
             })}
-            {players.length === 0 && (
+            {seatedPlayers.length === 0 && (
               <li className="px-4 py-6 text-center text-sm text-muted">Тоглогч алга байна.</li>
             )}
           </ul>
+
+          {spectators.length > 0 && (
+            <>
+              <div className="mb-3 mt-8 text-xs font-bold uppercase tracking-widest text-muted-2">
+                Үзэгчид ({spectators.length}/20)
+              </div>
+              <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+                {spectators.map((player) => {
+                  const isYou = player.id === session.playerId
+                  const canKick =
+                    session.isHost && session.hostToken && player.id !== session.playerId
+                  return (
+                    <li
+                      key={player.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                    >
+                      <span className="truncate font-bold text-ink">
+                        {player.nickname}
+                        {isYou ? ' · та' : ''}
+                      </span>
+                      {canKick && (
+                        <button
+                          type="button"
+                          disabled={busy || starting || kickingId === player.id}
+                          onClick={() => void handleKick(player.id)}
+                          className="rounded-lg px-2.5 py-1 text-xs font-bold text-pink hover:bg-pink/10 disabled:opacity-50"
+                        >
+                          {kickingId === player.id ? 'Хасаж байна…' : 'Хасах'}
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
 
           {session.isHost && room && (
             <div className="mt-8">

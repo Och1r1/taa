@@ -65,6 +65,7 @@ function mapRoomRow(row: {
   created_at: string
   expires_at: string
   countdown_ends_at?: string | null
+  visibility?: string | null
 }): GameRoom {
   return {
     id: row.id,
@@ -72,7 +73,7 @@ function mapRoomRow(row: {
     status: row.status,
     hostPlayerId: row.host_player_id,
     artistSlug: row.artist_slug,
-    category: row.category,
+    category: row.category as GameRoom['category'],
     rounds: row.rounds,
     timePerRound: row.time_per_round,
     maxPoints: row.max_points,
@@ -80,6 +81,8 @@ function mapRoomRow(row: {
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     countdownEndsAt: row.countdown_ends_at ?? null,
+    visibility: row.visibility === 'private' ? 'private' : 'public',
+    inviteSecret: null,
   }
 }
 
@@ -440,7 +443,9 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
 
     // The host is the stage controller, not an answer pad. Counting the host
     // here can make a room advance based on stale/host answers.
-    const answeringPlayers = players.filter((player) => !player.isHost)
+    const answeringPlayers = players.filter(
+      (player) => !player.isHost && player.role !== 'spectator',
+    )
     const allAnswered =
       answeringPlayers.length > 0 &&
       answeringPlayers.every((player) =>
@@ -569,11 +574,13 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     }
   }, [session.isHost, session.roomId, room])
 
-  const rankedPlayers = [...players].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score
-    if (b.correctCount !== a.correctCount) return b.correctCount - a.correctCount
-    return a.joinedAt.localeCompare(b.joinedAt)
-  })
+  const rankedPlayers = [...players]
+    .filter((player) => player.role !== 'spectator')
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      if (b.correctCount !== a.correctCount) return b.correctCount - a.correctCount
+      return a.joinedAt.localeCompare(b.joinedAt)
+    })
 
   return {
     room,

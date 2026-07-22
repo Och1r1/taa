@@ -68,6 +68,7 @@ export function useRoomLobby(roomId: string | null): LobbyState {
             created_at: string
             expires_at: string
             countdown_ends_at?: string | null
+            visibility?: string | null
           }
           setRoom({
             id: row.id,
@@ -75,7 +76,7 @@ export function useRoomLobby(roomId: string | null): LobbyState {
             status: row.status,
             hostPlayerId: row.host_player_id,
             artistSlug: row.artist_slug,
-            category: row.category,
+            category: row.category as GameRoom['category'],
             rounds: row.rounds,
             timePerRound: row.time_per_round,
             maxPoints: row.max_points,
@@ -83,6 +84,8 @@ export function useRoomLobby(roomId: string | null): LobbyState {
             createdAt: row.created_at,
             expiresAt: row.expires_at,
             countdownEndsAt: row.countdown_ends_at ?? null,
+            visibility: row.visibility === 'private' ? 'private' : 'public',
+            inviteSecret: null,
           })
         },
       )

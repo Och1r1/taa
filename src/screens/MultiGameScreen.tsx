@@ -157,6 +157,8 @@ export function MultiGameScreen({ session, onLeave }: Props) {
     : null
 
   const you = game.players.find((p) => p.id === session.playerId)
+  const isSpectator = session.role === 'spectator' || you?.role === 'spectator'
+  const answeringPlayers = game.players.filter((p) => !p.isHost && p.role !== 'spectator')
   const answeredCount = game.round
     ? game.answers.filter((answer) => answer.roundIndex === game.round!.roundIndex).length
     : 0
@@ -179,12 +181,20 @@ export function MultiGameScreen({ session, onLeave }: Props) {
           Гарах
         </button>
         <div className="text-right">
-          <div className="text-xs font-bold tracking-widest text-muted-2">ОНОО</div>
+          <div className="text-xs font-bold tracking-widest text-muted-2">
+            {isSpectator ? 'ҮЗЭГЧ' : 'ОНОО'}
+          </div>
           <div className="text-lg font-extrabold text-cyan">
-            {(you?.score ?? 0).toLocaleString()}
+            {isSpectator ? '—' : (you?.score ?? 0).toLocaleString()}
           </div>
         </div>
       </div>
+
+      {isSpectator && (
+        <p className="mb-4 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-3 text-sm text-cyan">
+          Та үзэгчээр нэгдсэн — хариулт өгөхгүй, зөвхөн үзнэ.
+        </p>
+      )}
 
       {game.error && (
         <p className="mb-4 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
@@ -211,7 +221,7 @@ export function MultiGameScreen({ session, onLeave }: Props) {
             <div className="mb-8">
               <TimerBar timeLeft={game.timeLeft} total={game.room.timePerRound} />
               <p className="mt-2 text-center text-xs text-muted">
-                Хариулсан: {answeredCount}/{game.players.length}
+                Хариулсан: {answeredCount}/{answeringPlayers.length}
               </p>
             </div>
           )}
@@ -224,11 +234,14 @@ export function MultiGameScreen({ session, onLeave }: Props) {
                 key={opt.songId}
                 option={opt}
                 index={i}
-                disabled={revealed || Boolean(game.myAnswer)}
+                disabled={isSpectator || revealed || Boolean(game.myAnswer)}
                 revealed={revealed}
                 isAnswer={revealed && opt.songId === game.round!.answerSongId}
-                isPicked={opt.songId === game.myAnswer?.pickedSongId}
-                onPick={(id) => void game.answer(id)}
+                isPicked={!isSpectator && opt.songId === game.myAnswer?.pickedSongId}
+                onPick={(id) => {
+                  if (isSpectator) return
+                  void game.answer(id)
+                }}
               />
             ))}
           </div>

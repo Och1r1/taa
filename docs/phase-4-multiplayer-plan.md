@@ -9,7 +9,18 @@ Phase 4 expands `Хамтдаа` after the room, synced-round, and room-polish w
 - Record multiplayer results in the leaderboard.
 - Let people watch a game without affecting it.
 
-## Delivery order
+## Status overview
+
+| Feature | Status |
+|---------|--------|
+| 1. Auth foundation (anonymous + `user_id`) | Done |
+| 2. Private rooms + invite links | In progress / this ship |
+| 3. Rematch (same-room restart polish) | Done (full new-room rematch deferred) |
+| 4. Multiplayer leaderboard | Done |
+| 5. QR join (public PIN) | Done (private invite QR in this ship) |
+| 6. Spectator mode | In progress / this ship |
+
+## Delivery order (original)
 
 1. Authentication and RLS foundation
 2. Private rooms and invite links
@@ -18,125 +29,172 @@ Phase 4 expands `Хамтдаа` after the room, synced-round, and room-polish w
 5. QR join
 6. Spectator mode
 
-Authentication comes first because private access and reliable score ownership depend on it. QR joining can be delivered earlier if it remains a public-PIN convenience feature.
+Playability reorder used in practice: QR → rematch polish → thin Auth → multi leaderboard → private → spectators.
+
+---
 
 ## 1. Authentication and RLS foundation
 
 ### Scope
 
-- [x] Add Supabase Auth sign-in flow, initially using anonymous sign-in or magic links.
+- [x] Add Supabase Auth sign-in flow, initially using anonymous sign-in.
 - [ ] Create a `profiles` table for display names and optional avatar metadata.
 - [x] Associate room hosts and players with authenticated user IDs.
 - [x] Replace host-token-only authorization with Auth-aware host checks.
-- [x] Preserve the current host token only as a temporary migration fallback, then remove it.
-- [ ] Restrict RLS reads and writes to the relevant room participants.
+- [x] Preserve the current host token as a temporary migration fallback.
+- [ ] Remove host_token entirely once Auth-only host checks are trusted in production.
+- [ ] Restrict RLS reads and writes to the relevant room participants (SELECT still open for Realtime).
 - [x] Ensure an answer can only be submitted by its authenticated player.
 
 ### Acceptance checks
 
 - [x] Refreshing a page restores the same signed-in identity.
 - [x] A player cannot heartbeat, answer for, or remove another player.
-- [x] Only the authenticated host can start, reveal, advance, finish, or close a room.
+- [x] Only the authenticated host (or host_token fallback) can start, reveal, advance, finish, or close a room.
 - [x] Existing public-PIN flow continues to work during the migration.
+
+**SQL:** `supabase/rooms-auth.sql`
+
+---
 
 ## 2. Private rooms
 
 ### Scope
 
-- [ ] Add a room visibility field: `public_pin` or `private_invite`.
-- [ ] Add a cryptographically random invite secret for private rooms.
-- [ ] Let the host choose visibility during room creation.
-- [ ] Add a private invite URL and sharing controls in the lobby.
-- [ ] Update join RPCs and RLS to validate the invite secret for private rooms.
-- [ ] Hide private rooms from any future room discovery views.
+- [x] Add a room visibility field: `public` or `private`.
+- [x] Add a cryptographically random invite secret for private rooms.
+- [x] Let the host choose visibility during room creation.
+- [x] Add a private invite URL and sharing controls in the lobby.
+- [x] Update join RPCs to validate the invite secret for private rooms (invite link only — PIN alone fails).
+- [x] QR / copy-link uses invite URLs for private rooms.
+- [x] Host can rotate the invite secret without ending the game.
+- [ ] Hide private rooms from any future room discovery views (no discovery UI yet).
 
 ### Acceptance checks
 
-- [ ] A private room cannot be joined using its PIN alone.
-- [ ] A valid invite link joins the intended private room.
-- [ ] Rotating or invalidating an invite prevents later joins without ending the game.
+- [x] A private room cannot be joined using its PIN alone.
+- [x] A valid invite link joins the intended private room.
+- [x] Rotating or invalidating an invite prevents later joins without ending the game.
+
+**Product default:** private = invite link only (not PIN + invite).
+
+**SQL:** `supabase/rooms-private-spectators.sql`
+
+---
 
 ## 3. Rematch
 
-### Scope
+### Shipped (same-room polish)
 
-- [ ] Add a `Rematch` action to the finished podium for the host.
-- [ ] Create a new room with the same pack and game configuration.
-- [ ] Generate a new PIN and reset all player scores, answers, and rounds.
-- [ ] Show current players a rematch invitation and acceptance state.
-- [ ] Allow new players to join the new room normally.
-- [ ] Add an expiration timeout for an unanswered rematch invitation.
+- [x] Host `Дахин тоглох` on finished podium.
+- [x] Reset scores, answers, and rounds; return everyone to lobby; same PIN/pack.
+- [x] Guest waiting copy on podium; lobby handoff; host kick + presence.
 
-### Acceptance checks
+### Deferred (full redesign)
 
-- [ ] A rematch never reuses the completed room or its score state.
-- [ ] Players can accept or decline without affecting the completed results.
-- [ ] The original host remains host of the new room.
+- [ ] Create a **new** room with the same pack and game configuration.
+- [ ] Generate a new PIN and rematch invitation / accept / decline states.
+- [ ] Expiration timeout for an unanswered rematch invitation.
+- [ ] Rematch never reuses the completed room row (stricter than current restart).
+
+---
 
 ## 4. Multiplayer leaderboard results
 
 ### Scope
 
 - [x] Extend score storage with `mode` (`solo` or `multi`) and room metadata.
-- [x] Decide whether to save every participant, only the podium, or both.
-- [x] Add a host-authorized RPC that writes final scores once per completed room.
-- [x] Add idempotency so reconnecting or refreshing cannot duplicate results.
-- [x] Add multiplayer filters or badges to the leaderboard screen.
-- [x] Define whether solo and multiplayer rankings appear together or separately.
+- [x] Save every participant (not only podium).
+- [x] Host-authorized finish path writes final scores once per completed match.
+- [x] Idempotency via `rooms.score_export_id` (rematch clears marker for a new batch).
+- [x] Multiplayer badge on the leaderboard screen.
+- [x] Solo and multiplayer on one shared board.
+- [ ] Optional filter tabs: All / Solo / Хамтдаа.
 
-### Acceptance checks
+**SQL:** `supabase/rooms-leaderboard.sql`
 
-- [x] Finished-room results are stored exactly once.
-- [x] Saved results match final room scores and correct-answer counts.
-- [x] The leaderboard clearly identifies multiplayer results.
+---
 
 ## 5. QR join
 
 ### Scope
 
-- [ ] Add a small QR code generation dependency.
-- [ ] Generate a join URL such as `/join?pin=123456` for public rooms.
-- [ ] Pre-fill the PIN on the join form when the URL contains it.
-- [ ] Display the QR code in the host lobby.
-- [ ] Use invite URLs, not bare PIN URLs, for private rooms.
-- [ ] Provide a copy-link fallback for devices that cannot scan QR codes.
+- [x] QR dependency (`qrcode.react`).
+- [x] Public join URL `/join?pin=123456` + PIN prefill + lobby QR + copy-link.
+- [x] Private rooms use `/join?invite=…` QR/copy (with this private-rooms ship).
+- [x] Malformed join links fail with a clear message.
 
-### Acceptance checks
-
-- [ ] Scanning a public-room QR code opens the join flow with the PIN filled in.
-- [ ] Scanning a private-room QR code validates the private invite.
-- [ ] A malformed join link fails safely with a clear message.
+---
 
 ## 6. Spectator mode
 
 ### Scope
 
-- [ ] Add a participant role: `player` or `spectator`.
-- [ ] Permit spectators to join after a game starts.
-- [ ] Render game state, media, timer, reveal, and rankings in read-only mode.
-- [ ] Exclude spectators from answer submission, scores, and all-answered calculations.
-- [ ] Show player and spectator counts separately.
-- [ ] Set a spectator capacity and host controls if needed.
+- [x] Participant role: `player` or `spectator`.
+- [x] Spectators may join after a game starts (and from lobby).
+- [x] Read-only game UI: media, timer, reveal, rankings (no answer controls).
+- [x] Excluded from answer submission, score export, and all-answered waits.
+- [x] Separate player / spectator counts in the lobby.
+- [x] Spectator capacity (default 20).
+- [ ] Optional host “promote / kick spectator” extras beyond normal kick.
 
 ### Acceptance checks
 
-- [ ] A spectator cannot submit an answer or receive points.
-- [ ] A spectator joining mid-round does not delay reveal.
-- [ ] Spectators receive the same authoritative room and round state as players.
+- [x] A spectator cannot submit an answer or receive points.
+- [x] A spectator joining mid-round does not delay reveal.
+- [x] Spectators receive the same authoritative room and round state as players.
 
-## Cross-cutting quality checklist
+**Product default:** spectators see full media (same stage as players), read-only.
 
-- [ ] Add database migrations in dependency order and document that order in the README.
-- [ ] Add focused tests for RPC authorization, room visibility, rematch, score idempotency, and spectator rules.
-- [ ] Test host refresh, guest refresh, reconnect after idle pruning, and host departure.
-- [ ] Test with at least two browser sessions for each feature.
-- [ ] Apply rate limits to create, join, answer, rematch, and invite validation endpoints.
-- [ ] Run `npm run build` before each release.
+**SQL:** `supabase/rooms-private-spectators.sql`
 
-## Open product decisions
+---
 
-- [ ] Is sign-in required for everyone, or should guests remain anonymous?
-- [ ] Are private rooms PIN plus invite link, or invite link only?
-- [ ] Should rematches preserve the existing player roster automatically?
-- [x] Should multiplayer scores share a leaderboard with solo scores?
-- [ ] Can spectators see media, or should they see answers and rankings only?
+## Backlog (options / leftovers)
+
+Track these explicitly so they are not lost after Phase 4 core ships:
+
+### Auth & security
+
+- [ ] `profiles` table (display name, optional avatar) + light UI.
+- [ ] Magic-link / email sign-in (optional upgrade from anonymous).
+- [ ] Remove `host_token` fallback; Auth-only host checks.
+- [ ] Tighten RLS SELECT to room participants (rethink Realtime filters).
+- [ ] Rate limits on create, join, answer, rematch, invite validation.
+
+### Product polish
+
+- [ ] Full new-room rematch with accept/decline + timeout.
+- [ ] Leaderboard mode filter (All / Solo / Хамтдаа).
+- [ ] Room discovery list (public lobbies only; never private).
+- [ ] Invite rotate UI confirmations + copy feedback polish.
+- [ ] Spectator capacity controls editable by host.
+
+### Quality
+
+- [x] Document SQL apply order in README (keep updated as files ship).
+- [ ] Focused automated tests for RPC auth, visibility, rematch, score idempotency, spectators.
+- [ ] Manual matrix: host refresh, guest refresh, idle prune, host departure (two browsers).
+- [ ] `npm run build` before each release.
+
+### Open product decisions
+
+- [x] Guests remain anonymous (no required sign-up).
+- [x] Private rooms: invite link only (not PIN alone).
+- [x] Rematch for now: same-room restart; roster preserved in lobby.
+- [x] Solo + multi share one leaderboard with a Хамтдаа badge.
+- [x] Spectators can see media (full stage, read-only).
+- [ ] When to require real (non-anonymous) accounts for ranked multi scores.
+
+---
+
+## SQL apply order (multiplayer)
+
+After base catalog / leaderboard SQL:
+
+1. `supabase/rooms.sql`
+2. `supabase/rooms-game.sql`
+3. `supabase/rooms-polish.sql`
+4. `supabase/rooms-auth.sql` — enable Anonymous Sign-Ins first
+5. `supabase/rooms-leaderboard.sql`
+6. `supabase/rooms-private-spectators.sql`

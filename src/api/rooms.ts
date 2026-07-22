@@ -9,9 +9,11 @@ import type {
   MultiSession,
   RoomAnswer,
   RoomPlayer,
+  RoomPlayerRole,
   RoomRound,
   RoomRoundOption,
   RoomStatus,
+  RoomVisibility,
   RoundOutcome,
   Song,
 } from '../types'
@@ -30,6 +32,8 @@ interface RoomRow {
   created_at: string
   expires_at: string
   countdown_ends_at?: string | null
+  visibility?: RoomVisibility | null
+  invite_secret?: string | null
 }
 
 interface PlayerRow {
@@ -37,6 +41,7 @@ interface PlayerRow {
   room_id: string
   nickname: string
   is_host: boolean
+  role?: RoomPlayerRole | null
   score: number
   correct_count: number
   joined_at: string
@@ -74,11 +79,21 @@ interface CreateRoomRpc {
   room: RoomRow
   player: PlayerRow
   host_token: string
+  invite_secret?: string | null
 }
 
 interface JoinRoomRpc {
   room: RoomRow
   player: PlayerRow
+}
+
+export interface RoomPeek {
+  pin: string
+  status: RoomStatus
+  visibility: RoomVisibility
+  inviteSecret: string | null
+  acceptsPlayers: boolean
+  acceptsSpectators: boolean
 }
 
 const SESSION_KEY = 'taa.multi.session'
@@ -100,7 +115,7 @@ function toRoom(row: RoomRow): GameRoom {
     status: row.status,
     hostPlayerId: row.host_player_id,
     artistSlug: row.artist_slug,
-    category: row.category,
+    category: row.category as Category,
     rounds: row.rounds,
     timePerRound: row.time_per_round,
     maxPoints: row.max_points,
@@ -108,6 +123,8 @@ function toRoom(row: RoomRow): GameRoom {
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     countdownEndsAt: row.countdown_ends_at ?? null,
+    visibility: row.visibility === 'private' ? 'private' : 'public',
+    inviteSecret: row.invite_secret ?? null,
   }
 }
 
@@ -117,6 +134,7 @@ function toPlayer(row: PlayerRow): RoomPlayer {
     roomId: row.room_id,
     nickname: row.nickname,
     isHost: row.is_host,
+    role: row.role === 'spectator' ? 'spectator' : 'player',
     score: row.score,
     correctCount: row.correct_count,
     joinedAt: row.joined_at,
@@ -166,7 +184,7 @@ function toAnswer(row: AnswerRow): RoomAnswer {
 function rpcMessage(error: { message: string }): string {
   const raw = error.message
   const match = raw.match(
-    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Authentication required/i,
+    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Authentication required|Private room requires invite|Invalid invite|Spectator limit reached|Spectators cannot answer|Room is not accepting spectators|Invalid visibility/i,
   )
   if (match) return match[0]
   if (raw.includes('duplicate key') || raw.includes('rooms_pin')) return 'PIN already in use'
@@ -194,7 +212,12 @@ export function loadMultiSession(): MultiSession | null {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as MultiSession
+    const parsed = JSON.parse(raw) as MultiSession
+    return {
+      ...parsed,
+      role: parsed.role === 'spectator' ? 'spectator' : 'player',
+      inviteSecret: parsed.inviteSecret ?? null,
+    }
   } catch {
     return null
   }
@@ -209,6 +232,7 @@ export interface CreateRoomInput {
   artistSlug: string
   category: Category
   config: GameConfig
+  visibility?: RoomVisibility
 }
 
 export interface RoomJoinResult {
@@ -222,6 +246,7 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
   await ensureAnonymousUser()
   const hostToken = randomToken()
   const nickname = input.hostNickname.trim().slice(0, 24)
+  const visibility = input.visibility ?? 'public'
   let lastError: Error | null = null
 
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -235,6 +260,7 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
       p_rounds: input.config.rounds,
       p_time_per_round: input.config.timePerRound,
       p_max_points: input.config.maxPoints,
+      p_visibility: visibility,
     })
 
     if (error) {
@@ -254,7 +280,10 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
       throw new Error('Өрөө үүсгэж чадсангүй: серверийн хариу буруу байна')
     }
 
-    const room = toRoom(payload.room)
+    const room = toRoom({
+      ...payload.room,
+      invite_secret: payload.invite_secret ?? payload.room.invite_secret ?? null,
+    })
     const player = toPlayer(payload.player)
     const session: MultiSession = {
       roomId: room.id,
@@ -262,6 +291,8 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
       playerId: player.id,
       nickname: player.nickname,
       isHost: true,
+      role: 'player',
+      inviteSecret: room.inviteSecret,
       hostToken: payload.host_token,
     }
     saveMultiSession(session)
@@ -271,14 +302,51 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
   throw lastError ?? new Error('Өрөө үүсгэж чадсангүй: PIN олдсонгүй')
 }
 
-/** Join an existing lobby by PIN + nickname. */
-export async function joinRoom(pin: string, nickname: string): Promise<RoomJoinResult> {
+export interface JoinRoomInput {
+  pin?: string | null
+  invite?: string | null
+  nickname: string
+  asSpectator?: boolean
+}
+
+/** Join an existing room as a player (lobby) or spectator. */
+export async function joinRoom(input: JoinRoomInput | string, nicknameArg?: string): Promise<RoomJoinResult> {
   await ensureAnonymousUser()
-  const cleanedPin = pin.replace(/\D/g, '').slice(0, 6)
-  const { data, error } = await supabase.rpc('join_room', {
-    p_pin: cleanedPin,
-    p_nickname: nickname.trim().slice(0, 24),
-  })
+
+  // Back-compat: joinRoom(pin, nickname)
+  const normalized: JoinRoomInput =
+    typeof input === 'string'
+      ? { pin: input, nickname: nicknameArg ?? '' }
+      : input
+
+  const nickname = normalized.nickname.trim().slice(0, 24)
+  const pin = normalized.pin ? normalized.pin.replace(/\D/g, '').slice(0, 6) : null
+  const invite = normalized.invite?.trim() || null
+  const asSpectator = Boolean(normalized.asSpectator)
+
+  let data: unknown
+  let error: { message: string } | null = null
+
+  if (invite && !pin) {
+    const rpc = asSpectator ? 'join_room_spectator_by_invite' : 'join_room_by_invite'
+    const result = await supabase.rpc(rpc, {
+      p_invite: invite,
+      p_nickname: nickname,
+    })
+    data = result.data
+    error = result.error
+  } else if (pin) {
+    const rpc = asSpectator ? 'join_room_spectator' : 'join_room'
+    const result = await supabase.rpc(rpc, {
+      p_pin: pin,
+      p_nickname: nickname,
+      p_invite: invite,
+    })
+    data = result.data
+    error = result.error
+  } else {
+    throw new Error('PIN эсвэл урилгын холбоос хэрэгтэй')
+  }
 
   if (error) throw new Error(`Өрөөнд нэгдэж чадсангүй: ${rpcMessage(error)}`)
 
@@ -287,7 +355,10 @@ export async function joinRoom(pin: string, nickname: string): Promise<RoomJoinR
     throw new Error('Өрөөнд нэгдэж чадсангүй: серверийн хариу буруу байна')
   }
 
-  const room = toRoom(payload.room)
+  const room = toRoom({
+    ...payload.room,
+    invite_secret: invite ?? payload.room.invite_secret ?? null,
+  })
   const player = toPlayer(payload.player)
   const session: MultiSession = {
     roomId: room.id,
@@ -295,10 +366,64 @@ export async function joinRoom(pin: string, nickname: string): Promise<RoomJoinR
     playerId: player.id,
     nickname: player.nickname,
     isHost: Boolean(player.isHost),
+    role: player.role,
+    inviteSecret: room.visibility === 'private' ? invite : null,
     hostToken: null,
   }
   saveMultiSession(session)
   return { room, player, session }
+}
+
+export async function peekRoomByPin(pin: string): Promise<RoomPeek> {
+  await ensureAnonymousUser()
+  const cleaned = pin.replace(/\D/g, '').slice(0, 6)
+  const { data, error } = await supabase.rpc('peek_room_by_pin', { p_pin: cleaned })
+  if (error) throw new Error(rpcMessage(error))
+  return toPeek(normalizeRpcPayload(data))
+}
+
+export async function peekRoomByInvite(invite: string): Promise<RoomPeek> {
+  await ensureAnonymousUser()
+  const { data, error } = await supabase.rpc('peek_room_by_invite', {
+    p_invite: invite.trim(),
+  })
+  if (error) throw new Error(rpcMessage(error))
+  return toPeek(normalizeRpcPayload(data))
+}
+
+export async function rotateRoomInvite(roomId: string, hostToken: string): Promise<GameRoom> {
+  await ensureAnonymousUser()
+  const { data, error } = await supabase.rpc('rotate_room_invite', {
+    p_room_id: roomId,
+    p_host_token: hostToken,
+  })
+  if (error) throw new Error(`Урилга шинэчилж чадсангүй: ${rpcMessage(error)}`)
+  const payload = normalizeRpcPayload(data) as { room: RoomRow; invite_secret?: string } | null
+  if (!payload?.room) throw new Error('Урилга шинэчилж чадсангүй')
+  return toRoom({
+    ...payload.room,
+    invite_secret: payload.invite_secret ?? payload.room.invite_secret ?? null,
+  })
+}
+
+function toPeek(raw: unknown): RoomPeek {
+  const row = raw as {
+    pin: string
+    status: RoomStatus
+    visibility?: string
+    invite_secret?: string | null
+    accepts_players?: boolean
+    accepts_spectators?: boolean
+  } | null
+  if (!row?.pin) throw new Error('Өрөө олдсонгүй')
+  return {
+    pin: row.pin,
+    status: row.status,
+    visibility: row.visibility === 'private' ? 'private' : 'public',
+    inviteSecret: row.invite_secret ?? null,
+    acceptsPlayers: Boolean(row.accepts_players),
+    acceptsSpectators: Boolean(row.accepts_spectators),
+  }
 }
 
 /** Leave the lobby. Host leave closes the room for everyone. */
@@ -327,14 +452,14 @@ export async function fetchRoom(roomId: string): Promise<GameRoom | null> {
   const { data, error } = await supabase
     .from('rooms')
     .select(
-      'id, pin, status, host_player_id, artist_slug, category, rounds, time_per_round, max_points, current_round_index, created_at, expires_at, countdown_ends_at',
+      'id, pin, status, host_player_id, artist_slug, category, rounds, time_per_round, max_points, current_round_index, created_at, expires_at, countdown_ends_at, visibility',
     )
     .eq('id', roomId)
     .maybeSingle()
 
   if (error) {
     // Older DBs before rooms-polish.sql may lack countdown_ends_at.
-    if (error.message.includes('countdown_ends_at')) {
+    if (error.message.includes('countdown_ends_at') || error.message.includes('visibility')) {
       const fallback = await supabase
         .from('rooms')
         .select(
@@ -353,11 +478,22 @@ export async function fetchRoom(roomId: string): Promise<GameRoom | null> {
 export async function fetchRoomPlayers(roomId: string): Promise<RoomPlayer[]> {
   const { data, error } = await supabase
     .from('room_players')
-    .select('id, room_id, nickname, is_host, score, correct_count, joined_at, last_seen')
+    .select('id, room_id, nickname, is_host, role, score, correct_count, joined_at, last_seen')
     .eq('room_id', roomId)
     .order('joined_at', { ascending: true })
 
-  if (error) throw new Error(`Тоглогчдыг татаж чадсангүй: ${error.message}`)
+  if (error) {
+    if (error.message.includes('role')) {
+      const fallback = await supabase
+        .from('room_players')
+        .select('id, room_id, nickname, is_host, score, correct_count, joined_at, last_seen')
+        .eq('room_id', roomId)
+        .order('joined_at', { ascending: true })
+      if (fallback.error) throw new Error(`Тоглогчдыг татаж чадсангүй: ${fallback.error.message}`)
+      return ((fallback.data ?? []) as PlayerRow[]).map(toPlayer)
+    }
+    throw new Error(`Тоглогчдыг татаж чадсангүй: ${error.message}`)
+  }
   return ((data ?? []) as PlayerRow[]).map(toPlayer)
 }
 

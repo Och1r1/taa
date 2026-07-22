@@ -4,10 +4,22 @@ import { CategoryCard } from '../components/CategoryCard'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
-import { createRoom, joinRoom } from '../api/rooms'
-import { clearJoinPinFromUrl, normalizeJoinPin, readJoinPinFromUrl } from '../lib/joinUrl'
+import { createRoom, joinRoom, peekRoomByInvite, peekRoomByPin } from '../api/rooms'
+import {
+  clearJoinPinFromUrl,
+  normalizeInviteSecret,
+  normalizeJoinPin,
+  readJoinParamsFromUrl,
+} from '../lib/joinUrl'
 import { isSupabaseConfigured } from '../lib/supabase'
-import type { ArtistOption, Category, GameConfig, LeaderboardCategory, MultiSession } from '../types'
+import type {
+  ArtistOption,
+  Category,
+  GameConfig,
+  LeaderboardCategory,
+  MultiSession,
+  RoomVisibility,
+} from '../types'
 
 interface Props {
   onStart: (slug: string, category: Category, config: GameConfig) => void
@@ -28,9 +40,12 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [showMoreCategories, setShowMoreCategories] = useState(false)
   const [categorySearch, setCategorySearch] = useState('')
-  const [mode, setMode] = useState<'solo' | 'multi'>(() =>
-    readJoinPinFromUrl() || /^\/join(\/|$)/i.test(window.location.pathname) ? 'multi' : 'solo',
-  )
+  const [mode, setMode] = useState<'solo' | 'multi'>(() => {
+    const join = readJoinParamsFromUrl()
+    return join.pin || join.invite || /^\/join(\/|$)/i.test(window.location.pathname)
+      ? 'multi'
+      : 'solo'
+  })
 
   const [artists, setArtists] = useState<ArtistOption[]>([])
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null)
@@ -40,25 +55,52 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [rounds, setRounds] = useState(5)
   const [timePerRound, setTimePerRound] = useState(15)
   const [nickname, setNickname] = useState('')
-  const [joinPin, setJoinPin] = useState(() => readJoinPinFromUrl() ?? '')
+  const [joinPin, setJoinPin] = useState(() => readJoinParamsFromUrl().pin ?? '')
+  const [joinInvite, setJoinInvite] = useState(() => readJoinParamsFromUrl().invite ?? '')
+  const [roomVisibility, setRoomVisibility] = useState<RoomVisibility>('public')
   const [multiBusy, setMultiBusy] = useState(false)
   const [multiError, setMultiError] = useState<string | null>(null)
   const [joinLinkError, setJoinLinkError] = useState<string | null>(null)
+  const [acceptsPlayers, setAcceptsPlayers] = useState(true)
+  const [acceptsSpectators, setAcceptsSpectators] = useState(true)
 
-  // Consume deep link once: keep PIN in the form, clean the address bar.
+  // Consume deep link once: keep PIN/invite in the form, clean the address bar.
   useEffect(() => {
-    const pin = readJoinPinFromUrl()
-    if (!pin) {
+    const join = readJoinParamsFromUrl()
+    if (!join.pin && !join.invite) {
       if (/^\/join(\/|$)/i.test(window.location.pathname)) {
-        setJoinLinkError('Холбоос буруу байна. 6 оронтой PIN-тай холбоос ашиглана уу.')
+        setJoinLinkError('Холбоос буруу байна. PIN эсвэл урилгын холбоос ашиглана уу.')
         clearJoinPinFromUrl()
       }
       return
     }
-    setJoinPin(pin)
+    if (join.pin) setJoinPin(join.pin)
+    if (join.invite) setJoinInvite(join.invite)
     setJoinLinkError(null)
     clearJoinPinFromUrl()
+
+    let cancelled = false
+    void (async () => {
+      try {
+        const peek = join.invite
+          ? await peekRoomByInvite(join.invite)
+          : await peekRoomByPin(join.pin!)
+        if (cancelled) return
+        setJoinPin(peek.pin)
+        if (peek.inviteSecret) setJoinInvite(peek.inviteSecret)
+        setAcceptsPlayers(peek.acceptsPlayers)
+        setAcceptsSpectators(peek.acceptsSpectators)
+      } catch (err) {
+        if (!cancelled) {
+          setJoinLinkError(err instanceof Error ? err.message : 'Холбоос буруу байна')
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
+
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setLoadingCategories(false)
@@ -122,6 +164,7 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
         artistSlug: selectedArtist,
         category: selectedCategory,
         config: { rounds, timePerRound, maxPoints: MAX_POINTS },
+        visibility: roomVisibility,
       })
       onEnterLobby(result.session)
     } catch (error) {
@@ -131,14 +174,20 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     }
   }
 
-  async function handleJoinRoom() {
+  async function handleJoinRoom(asSpectator = false) {
     const pin = normalizeJoinPin(joinPin)
-    if (!hasNickname || !pin) return
+    const invite = normalizeInviteSecret(joinInvite)
+    if (!hasNickname || (!pin && !invite)) return
     setMultiBusy(true)
     setMultiError(null)
     setJoinLinkError(null)
     try {
-      const result = await joinRoom(pin, nickname)
+      const result = await joinRoom({
+        pin,
+        invite,
+        nickname,
+        asSpectator,
+      })
       onEnterLobby(result.session)
     } catch (error) {
       setMultiError(error instanceof Error ? error.message : 'Өрөөнд нэвтэрч чадсангүй.')
@@ -184,10 +233,12 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
         <section className="mb-10 overflow-hidden rounded-3xl bg-surface">
           <div className="bg-gradient-to-r from-pink/30 via-violet-500/20 to-cyan/20 px-6 py-6 text-center sm:px-10">
             <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-cyan">Live music quiz</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">Өрөөний код оруулна уу</h2>
+            <h2 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">
+              {joinInvite ? 'Урилгын холбоосоор нэгдэх' : 'Өрөөний код оруулна уу'}
+            </h2>
           </div>
           <div className="mx-auto max-w-xl p-5 sm:p-7">
-            <div className="grid gap-3 sm:grid-cols-[1fr_0.85fr_auto] sm:items-end">
+            <div className="grid gap-3 sm:grid-cols-[1fr_0.85fr] sm:items-end">
               <label className="block text-left text-sm font-bold text-muted" htmlFor="room-pin">
                 Өрөөний код
                 <input
@@ -197,7 +248,8 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   placeholder="123456"
-                  className="mt-2 w-full rounded-xl border-2 border-border bg-base px-3 py-3 text-center font-mono text-2xl font-extrabold tracking-[0.16em] text-ink outline-none placeholder:text-muted-2 focus:border-pink"
+                  disabled={Boolean(joinInvite)}
+                  className="mt-2 w-full rounded-xl border-2 border-border bg-base px-3 py-3 text-center font-mono text-2xl font-extrabold tracking-[0.16em] text-ink outline-none placeholder:text-muted-2 focus:border-pink disabled:opacity-60"
                 />
               </label>
               <label className="block text-left text-sm font-bold text-muted" htmlFor="nickname">
@@ -211,14 +263,37 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
                   className="mt-2 w-full rounded-xl border border-border bg-base px-4 py-3 text-ink outline-none focus:border-cyan/60"
                 />
               </label>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
               <Button
-                className="w-full py-3.5 text-sm sm:w-auto sm:px-7"
-                disabled={multiBusy || !hasNickname || joinPin.length !== 6}
-                onClick={() => void handleJoinRoom()}
+                className="min-w-[8rem] flex-1 py-3.5 text-sm sm:flex-none sm:px-7"
+                disabled={
+                  multiBusy ||
+                  !hasNickname ||
+                  (!joinInvite && joinPin.length !== 6) ||
+                  !acceptsPlayers
+                }
+                onClick={() => void handleJoinRoom(false)}
               >
-                {multiBusy ? 'Нэгдэж байна…' : 'ОРОХ →'}
+                {multiBusy ? 'Нэгдэж байна…' : 'Тоглогчоор орох'}
+              </Button>
+              <Button
+                variant="ghost"
+                className="min-w-[8rem] flex-1 py-3.5 text-sm sm:flex-none sm:px-7"
+                disabled={
+                  multiBusy ||
+                  !hasNickname ||
+                  (!joinInvite && joinPin.length !== 6) ||
+                  !acceptsSpectators
+                }
+                onClick={() => void handleJoinRoom(true)}
+              >
+                Үзэгчээр орох
               </Button>
             </div>
+            {joinInvite && (
+              <p className="mt-3 text-center text-xs text-muted">Хувийн урилгын холбоос илрүүлсэн.</p>
+            )}
             {(joinLinkError || multiError) && (
               <p className="mt-4 text-center text-sm font-bold text-pink">
                 {joinLinkError ?? multiError}
@@ -411,6 +486,34 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
               placeholder="Таны нэр"
               className="mt-2 w-full rounded-xl border border-border bg-base px-4 py-3 text-ink outline-none focus:border-cyan/60"
             />
+            <div className="mt-5">
+              <div className="mb-2 text-xs font-bold tracking-widest text-muted-2">Харагдац</div>
+              <div className="inline-flex rounded-xl border border-border bg-base p-1">
+                <button
+                  type="button"
+                  onClick={() => setRoomVisibility('public')}
+                  className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
+                    roomVisibility === 'public' ? 'bg-raised text-ink' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  Нийтийн PIN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRoomVisibility('private')}
+                  className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
+                    roomVisibility === 'private' ? 'bg-raised text-ink' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  Хувийн урилга
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-muted">
+                {roomVisibility === 'private'
+                  ? 'Зөвхөн урилгын холбоосоор нэгдэнэ. PIN-аар орж болохгүй.'
+                  : 'Найзууд PIN эсвэл QR-аар нэгдэнэ.'}
+              </p>
+            </div>
             <Button
               className="mt-5 w-full py-4 text-base"
               disabled={multiBusy || !hasNickname || !canStart}
