@@ -58,12 +58,12 @@ export function MultiGameScreen({ session, onLeave }: Props) {
   }
 
   if (game.room.status === 'lobby') {
+    // Parent MultiSessionGate switches to LobbyScreen on lobby status; this is
+    // only a brief handoff while Realtime catches up after rematch.
     return (
       <Centered>
-        <p className="text-muted">Лобби руу буцна уу.</p>
-        <Button className="mt-4" onClick={onLeave}>
-          Буцах
-        </Button>
+        <EqualizerBars className="mb-4 h-10" />
+        <p className="text-muted">Лобби руу буцаж байна…</p>
       </Centered>
     )
   }
@@ -73,11 +73,21 @@ export function MultiGameScreen({ session, onLeave }: Props) {
       <div className="mx-auto w-full max-w-2xl px-6 py-10">
         <p className="text-xs font-bold uppercase tracking-widest text-muted-2">Хамтдаа · дүн</p>
         <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Тоглоом дууслаа</h1>
-        <p className="mt-2 text-muted">Эцсийн онооны самбар</p>
+        <p className="mt-2 text-muted">
+          {session.isHost
+            ? 'Эцсийн онооны самбар. Дахин тоглох үед лобби руу буцана.'
+            : 'Эцсийн онооны самбар. Хөтлөгч дахин эхлүүлэхийг хүлээнэ үү.'}
+        </p>
 
         {game.error && (
           <p className="mt-4 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
             {game.error}
+          </p>
+        )}
+
+        {!session.isHost && (
+          <p className="mt-4 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-3 text-sm text-cyan">
+            Хөтлөгч «Дахин тоглох» дармагц лобби руу буцна.
           </p>
         )}
 
@@ -120,7 +130,7 @@ export function MultiGameScreen({ session, onLeave }: Props) {
         <div className="mt-8 flex flex-wrap gap-3">
           {session.isHost && (
             <Button disabled={game.starting} onClick={() => void game.restartGame()}>
-              {game.starting ? 'Дахин эхлүүлж байна…' : 'Дахин тоглох'}
+              {game.starting ? 'Лобби руу буцаж байна…' : 'Дахин тоглох'}
             </Button>
           )}
           <Button variant="ghost" onClick={onLeave}>

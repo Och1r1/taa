@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
-import { closeRoom, leaveRoom, startRoomRound } from '../api/rooms'
-import { fetchSongsByArtistSlug } from '../api/songs'
-import { makeRoundPick } from '../game/roundPick'
+import { beginRoomCountdown, closeRoom, kickRoomPlayer, leaveRoom } from '../api/rooms'
+import { useRoomPresence } from '../game/useRoomPresence'
 import type { GameRoom, MultiSession, RoomPlayer } from '../types'
 
 interface Props {
@@ -14,6 +13,8 @@ interface Props {
   error: string | null
   onLeave: () => void
 }
+
+const COUNTDOWN_SECONDS = 3
 
 /** Lobby: PIN, live players, host starts synced game. */
 export function LobbyScreen({
@@ -26,11 +27,22 @@ export function LobbyScreen({
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [kickingId, setKickingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
   const closed = Boolean(!loading && (!room || room.status === 'closed'))
   const pin = room?.pin ?? session.pin
+  const presenceEnabled = Boolean(room && room.status === 'lobby' && !closed)
+  const { onlineIds } = useRoomPresence(session, players, presenceEnabled)
+
+  // Guest was removed (kick / idle prune) — leave the local session cleanly.
+  useEffect(() => {
+    if (loading || !room || room.status === 'closed') return
+    if (players.length === 0) return
+    if (players.some((player) => player.id === session.playerId)) return
+    onLeave()
+  }, [loading, onLeave, players, room, session.playerId])
 
   async function handleLeave() {
     setBusy(true)
@@ -52,19 +64,23 @@ export function LobbyScreen({
     setStarting(true)
     setActionError(null)
     try {
-      const pool = await fetchSongsByArtistSlug(room.artistSlug)
-      if (pool.length < 4) throw new Error('Багцад дор хаяж 4 асуулт хэрэгтэй')
-      const { song, options } = makeRoundPick(pool, [])
-      await startRoomRound({
-        roomId: session.roomId,
-        hostToken: session.hostToken,
-        roundIndex: 0,
-        song,
-        options,
-      })
+      await beginRoomCountdown(session.roomId, session.hostToken, COUNTDOWN_SECONDS)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Эхлүүлж чадсангүй')
       setStarting(false)
+    }
+  }
+
+  async function handleKick(playerId: string) {
+    if (!session.isHost || !session.hostToken) return
+    setKickingId(playerId)
+    setActionError(null)
+    try {
+      await kickRoomPlayer(session.roomId, session.hostToken, playerId)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Тоглогчийг хасч чадсангүй')
+    } finally {
+      setKickingId(null)
     }
   }
 
@@ -87,7 +103,7 @@ export function LobbyScreen({
         </h1>
         <p className="mt-2 text-muted">
           {session.isHost
-            ? 'Найзууддаа PIN кодыг илгээгээд тэд нэгдэхийг хүлээнэ үү.'
+            ? 'Найзууддаа PIN кодыг илгээгээд бэлэн болмогц эхлүүлнэ үү. Дахин тоглох үед оноо шинэчлэгдэнэ.'
             : `Та ${session.nickname} нэрээр нэгдсэн. Хөтлөгч тоглоом эхлүүлэхийг хүлээнэ үү.`}
         </p>
       </div>
@@ -138,30 +154,56 @@ export function LobbyScreen({
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
             {players.map((player) => {
               const isYou = player.id === session.playerId
+              const online = onlineIds.has(player.id)
               const initial = (player.nickname || '?').slice(0, 1).toLocaleUpperCase()
+              const canKick =
+                session.isHost && session.hostToken && !player.isHost && player.id !== session.playerId
               return (
                 <li
                   key={player.id}
                   className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                        player.isHost ? 'bg-pink/20 text-pink' : 'bg-raised text-ink-soft'
-                      }`}
-                    >
-                      {initial}
+                    <span className="relative">
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                          player.isHost ? 'bg-pink/20 text-pink' : 'bg-raised text-ink-soft'
+                        }`}
+                      >
+                        {initial}
+                      </span>
+                      <span
+                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-surface ${
+                          online ? 'bg-cyan' : 'bg-muted-2'
+                        }`}
+                        title={online ? 'Онлайн' : 'Офлайн'}
+                      />
                     </span>
                     <span className="truncate font-bold text-ink">
                       {player.nickname}
                       {isYou ? ' · та' : ''}
+                      {!online && !isYou ? (
+                        <span className="ml-2 text-xs font-bold text-muted">офлайн</span>
+                      ) : null}
                     </span>
                   </div>
-                  {player.isHost && (
-                    <span className="shrink-0 rounded-lg bg-raised px-2.5 py-1 text-xs font-bold text-muted">
-                      Хөтлөгч
-                    </span>
-                  )}
+                  <div className="flex shrink-0 items-center gap-2">
+                    {player.isHost && (
+                      <span className="rounded-lg bg-raised px-2.5 py-1 text-xs font-bold text-muted">
+                        Хөтлөгч
+                      </span>
+                    )}
+                    {canKick && (
+                      <button
+                        type="button"
+                        disabled={busy || starting || kickingId === player.id}
+                        onClick={() => void handleKick(player.id)}
+                        className="rounded-lg px-2.5 py-1 text-xs font-bold text-pink hover:bg-pink/10 disabled:opacity-50"
+                      >
+                        {kickingId === player.id ? 'Хасаж байна…' : 'Хасах'}
+                      </button>
+                    )}
+                  </div>
                 </li>
               )
             })}
@@ -173,14 +215,14 @@ export function LobbyScreen({
           {session.isHost && room && (
             <div className="mt-8">
               <Button
-                disabled={starting}
+                disabled={starting || players.length < 1}
                 onClick={() => void handleStart()}
                 className="w-full py-4 text-base sm:w-auto sm:px-12"
               >
                 {starting ? 'Эхлүүлж байна…' : '▶ Тоглоом эхлүүлэх'}
               </Button>
               <p className="mt-2 text-sm text-muted">
-                Найзууд PIN-аар нэгдсэний дараа эхлүүлнэ үү.
+                Бэлэн болмогц эхлүүлнэ үү. Офлайн суудлыг хасаж болно.
               </p>
             </div>
           )}

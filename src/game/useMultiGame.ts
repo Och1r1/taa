@@ -162,7 +162,10 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     setRoom(nextRoom)
     setPlayers(nextPlayers)
 
-    if (nextRoom?.status === 'playing' || nextRoom?.status === 'revealing') {
+    if (nextRoom?.status === 'lobby' || nextRoom?.status === 'closed') {
+      setRound(null)
+      setAnswers([])
+    } else if (nextRoom?.status === 'playing' || nextRoom?.status === 'revealing') {
       await refreshRoundBundle(nextRoom.currentRoundIndex)
     }
 
@@ -206,6 +209,13 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
           }
           const next = mapRoomRow(payload.new as Parameters<typeof mapRoomRow>[0])
           setRoom(next)
+          if (next.status === 'lobby') {
+            setRound(null)
+            setAnswers([])
+            poolRef.current = []
+            usedIdsRef.current = []
+            publishedCountdownRef.current = null
+          }
           if (next.status === 'playing' || next.status === 'revealing') {
             void refreshRoundBundle(next.currentRoundIndex)
           }
@@ -372,11 +382,17 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     setStarting(true)
     setError(null)
     try {
+      // Reset to lobby so everyone can rejoin the seating flow. The host starts
+      // the next match from LobbyScreen when the party is ready.
       await restartRoomGame(session.roomId, session.hostToken)
       poolRef.current = []
       usedIdsRef.current = []
       publishedCountdownRef.current = null
-      await beginRoomCountdown(session.roomId, session.hostToken, COUNTDOWN_SECONDS)
+      revealingRef.current = false
+      advancingRef.current = false
+      setRound(null)
+      setAnswers([])
+      setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Дахин эхлүүлж чадсангүй')
     } finally {
