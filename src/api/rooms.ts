@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { ensureMultiplayerSession, supabase } from '../lib/supabase'
 import { resolveMediaUrl } from './songs'
 import type {
   Category,
@@ -218,6 +218,7 @@ export interface RoomJoinResult {
 
 /** Create a lobby room and seat the host. Retries a few times on PIN collision. */
 export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult> {
+  await ensureMultiplayerSession()
   const hostToken = randomToken()
   const nickname = input.hostNickname.trim().slice(0, 24)
   let lastError: Error | null = null
@@ -271,6 +272,7 @@ export async function createRoom(input: CreateRoomInput): Promise<RoomJoinResult
 
 /** Join an existing lobby by PIN + nickname. */
 export async function joinRoom(pin: string, nickname: string): Promise<RoomJoinResult> {
+  await ensureMultiplayerSession()
   const cleanedPin = pin.replace(/\D/g, '').slice(0, 6)
   const { data, error } = await supabase.rpc('join_room', {
     p_pin: cleanedPin,

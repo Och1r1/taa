@@ -24,7 +24,9 @@ npm run dev                  # http://localhost:5173
    **Project Settings → API**, copy the **Project URL** and **anon public key** into `.env.local`.
 2. **Create a public Storage bucket** named `song-audio` (Storage → New bucket → Public).
    Upload Vandebo `.mp3` snippet files, e.g. into a `vandebo/` folder.
-3. **Run the SQL** in the SQL Editor, in order:
+3. For multiplayer, enable **Authentication → Providers → Anonymous** in the Supabase dashboard.
+   Players are signed in anonymously when they create or join a room; no sign-up is shown.
+4. **Run the SQL** in the SQL Editor, in order:
    - `supabase/schema.sql` — creates `artists` + `songs` tables and read-only RLS policies.
    - `supabase/seed.sql` — inserts Vandebo + songs. **Edit the `audio_path` / `title` values
      to match the files you actually uploaded** before running.
@@ -34,6 +36,8 @@ npm run dev                  # http://localhost:5173
      backfills existing scores. Run this after `media.sql` for an existing project.
    - `supabase/category-catalog.sql` — creates the active-category catalog used by the
      leaderboard. Run this after `media.sql` and `category-leaderboard.sql`.
+   - `supabase/rooms.sql`, `supabase/rooms-game.sql`, `supabase/rooms-polish.sql`, then
+     `supabase/rooms-auth.sql` — creates authenticated multiplayer rooms. Run these in this order.
 
 That's it — reload the app and start a game.
 

@@ -23,3 +23,25 @@ export const supabase = createClient(
   url ?? 'https://placeholder.supabase.co',
   anonKey ?? 'placeholder-anon-key',
 )
+
+/**
+ * Ensure multiplayer requests have a Supabase identity. Anonymous accounts let
+ * guests play without a sign-up while allowing room RPCs to safely identify them.
+ */
+export async function ensureMultiplayerSession(): Promise<void> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase тохируулагдаагүй байна.')
+  }
+
+  const { data, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError) throw sessionError
+  if (data.session) return
+
+  const { error } = await supabase.auth.signInAnonymously()
+  if (error) {
+    throw new Error(
+      `Түр тоглогчийн эрх үүсгэж чадсангүй: ${error.message}. ` +
+        'Supabase дээр Anonymous Sign-Ins идэвхтэй эсэхийг шалгана уу.',
+    )
+  }
+}
