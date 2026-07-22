@@ -38,8 +38,9 @@ npm run dev                  # http://localhost:5173
      leaderboard. Run this after `media.sql` and `category-leaderboard.sql`.
    - `supabase/rooms.sql` → `rooms-game.sql` → `rooms-polish.sql` → `rooms-auth.sql` →
      `rooms-leaderboard.sql` → `rooms-private-spectators.sql` → `rooms-profiles.sql` →
-     `rooms-rematch.sql` → `rooms-rls-auth-host.sql` — multiplayer through Auth-only host,
-     participant SELECT RLS, rematch, profiles, private invites, and spectators.
+     `rooms-rematch.sql` → `rooms-rls-auth-host.sql` → `rooms-rate-limits.sql` —
+     multiplayer through Auth-only host, participant SELECT RLS, rematch, profiles,
+     private invites, spectators, and RPC rate limits.
 
 That's it — reload the app and start a game.
 

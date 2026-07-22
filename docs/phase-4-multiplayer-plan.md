@@ -157,10 +157,10 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 ### Auth & security
 
 - [x] `profiles` table (display name, optional avatar) + light UI.
-- [ ] Magic-link / email sign-in (optional upgrade from anonymous).
+- [x] Magic-link / email sign-in (optional upgrade from anonymous).
 - [x] Remove `host_token` fallback; Auth-only host checks.
 - [x] Tighten RLS SELECT to room participants (hybrid: peeks/joins via RPC; Realtime for seated players).
-- [ ] Rate limits on create, join, answer, rematch, invite validation.
+- [x] Rate limits on create, join, answer, rematch, invite validation.
 
 ### Product polish
 
@@ -173,7 +173,7 @@ Track these explicitly so they are not lost after Phase 4 core ships:
 ### Quality
 
 - [x] Document SQL apply order in README (keep updated as files ship).
-- [ ] Focused automated tests for RPC auth, visibility, rematch, score idempotency, spectators.
+- [x] Focused automated tests for RPC auth, visibility, rematch, score idempotency, spectators.
 - [ ] Manual matrix: host refresh, guest refresh, idle prune, host departure (two browsers).
 - [ ] `npm run build` before each release.
 
@@ -201,3 +201,4 @@ After base catalog / leaderboard SQL:
 7. `supabase/rooms-profiles.sql`
 8. `supabase/rooms-rematch.sql`
 9. `supabase/rooms-rls-auth-host.sql`
+10. `supabase/rooms-rate-limits.sql`
