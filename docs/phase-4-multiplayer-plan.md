@@ -202,3 +202,4 @@ After base catalog / leaderboard SQL:
 8. `supabase/rooms-rematch.sql`
 9. `supabase/rooms-rls-auth-host.sql`
 10. `supabase/rooms-rate-limits.sql`
+11. `supabase/rooms-rls-participant-fix.sql` — fixes room_players RLS recursion
