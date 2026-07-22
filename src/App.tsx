@@ -10,13 +10,18 @@ import { LobbyScreen } from './screens/LobbyScreen'
 import { MultiGameScreen } from './screens/MultiGameScreen'
 import { Header, type NavView } from './components/Header'
 import { Button } from './components/Button'
+import { readJoinPinFromUrl } from './lib/joinUrl'
 import type { MultiSession } from './types'
+
+function initialNavView(): NavView {
+  // Join deep links always open home (Хамтдаа), even if ?category= is also present.
+  if (readJoinPinFromUrl() || /^\/join(\/|$)/i.test(window.location.pathname)) return 'home'
+  return new URLSearchParams(window.location.search).has('category') ? 'leaderboard' : 'home'
+}
 
 export default function App() {
   const engine = useGameEngine()
-  const [view, setView] = useState<NavView>(() =>
-    new URLSearchParams(window.location.search).has('category') ? 'leaderboard' : 'home',
-  )
+  const [view, setView] = useState<NavView>(initialNavView)
   const [multiSession, setMultiSession] = useState<MultiSession | null>(null)
   const [restoringLobby, setRestoringLobby] = useState(true)
 
