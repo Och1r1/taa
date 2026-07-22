@@ -87,6 +87,34 @@ export async function updateDisplayName(name: string): Promise<Profile> {
   return profile
 }
 
+/** Email magic link — upgrades / signs in without a password (dashboard email must be enabled). */
+export async function sendMagicLink(email: string): Promise<void> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase тохируулагдаагүй байна.')
+  }
+  const trimmed = email.trim()
+  if (!trimmed.includes('@')) {
+    throw new Error('И-мэйл хаяг буруу байна')
+  }
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: trimmed,
+    options: {
+      emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      shouldCreateUser: true,
+    },
+  })
+  if (error) throw new Error(`И-мэйл илгээж чадсангүй: ${error.message}`)
+}
+
+export async function getAuthEmail(): Promise<string | null> {
+  if (!isSupabaseConfigured) return null
+  const { data } = await supabase.auth.getSession()
+  const user = data.session?.user
+  if (!user || user.is_anonymous) return null
+  return user.email ?? null
+}
+
 /** Resolve a preferred display name: profile → localStorage → empty. */
 export async function resolveDisplayName(): Promise<string> {
   const local = typeof localStorage !== 'undefined' ? localStorage.getItem(DISPLAY_NAME_KEY)?.trim() ?? '' : ''

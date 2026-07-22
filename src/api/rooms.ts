@@ -189,7 +189,7 @@ function toAnswer(row: AnswerRow): RoomAnswer {
 function rpcMessage(error: { message: string }): string {
   const raw = error.message
   const match = raw.match(
-    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Authentication required|Private room requires invite|Invalid invite|Spectator limit reached|Spectators cannot answer|Room is not accepting spectators|Invalid visibility|Game is not finished|Rematch already proposed|No rematch pending|Rematch timed out|Use propose_rematch|Host seat not found|Rematch room not found/i,
+    /Room not found|Room is not accepting|Room has expired|Room is full|Nickname already taken|PIN must be|Nickname must be|Not allowed|Invalid host|Round is not active|Round not found|Time is up|Already answered|Unexpected round|Cannot start|Options required|Invalid media|Player not in room|Room is closed|Cannot kick|Cannot start countdown|Authentication required|Private room requires invite|Invalid invite|Spectator limit reached|Spectators cannot answer|Room is not accepting spectators|Invalid visibility|Game is not finished|Rematch already proposed|No rematch pending|Rematch timed out|Use propose_rematch|Host seat not found|Rematch room not found|Хэт олон оролдлого/i,
   )
   if (match) return match[0]
   if (raw.includes('duplicate key') || raw.includes('rooms_pin')) return 'PIN already in use'

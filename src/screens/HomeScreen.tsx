@@ -4,7 +4,7 @@ import { CategoryCard } from '../components/CategoryCard'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
-import { resolveDisplayName, updateDisplayName } from '../api/auth'
+import { getAuthEmail, resolveDisplayName, sendMagicLink, updateDisplayName } from '../api/auth'
 import { createRoom, joinRoom, peekRoomByInvite, peekRoomByPin } from '../api/rooms'
 import {
   clearJoinPinFromUrl,
@@ -58,6 +58,10 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [nickname, setNickname] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
+  const [magicEmail, setMagicEmail] = useState('')
+  const [magicBusy, setMagicBusy] = useState(false)
+  const [magicMessage, setMagicMessage] = useState<string | null>(null)
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null)
   const [joinPin, setJoinPin] = useState(() => readJoinParamsFromUrl().pin ?? '')
   const [joinInvite, setJoinInvite] = useState(() => readJoinParamsFromUrl().invite ?? '')
   const [roomVisibility, setRoomVisibility] = useState<RoomVisibility>('public')
@@ -71,6 +75,9 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     let cancelled = false
     void resolveDisplayName().then((name) => {
       if (!cancelled && name) setNickname(name)
+    })
+    void getAuthEmail().then((email) => {
+      if (!cancelled) setSignedInEmail(email)
     })
     return () => {
       cancelled = true
@@ -191,6 +198,20 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     }
   }
 
+  async function handleMagicLink() {
+    if (magicBusy) return
+    setMagicBusy(true)
+    setMagicMessage(null)
+    try {
+      await sendMagicLink(magicEmail)
+      setMagicMessage('И-мэйл илгээлээ — холбоосоор нэвтэрнэ үү.')
+    } catch (error) {
+      setMagicMessage(error instanceof Error ? error.message : 'И-мэйл илгээж чадсангүй')
+    } finally {
+      setMagicBusy(false)
+    }
+  }
+
   async function handleCreateRoom() {
     if (!selectedArtist || !selectedCategory || !canStart || !hasNickname) return
     setMultiBusy(true)
@@ -278,6 +299,49 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
             {profileMessage}
           </p>
         )}
+        <div className="mt-4 border-t border-border pt-4">
+          {signedInEmail ? (
+            <p className="text-sm text-muted">
+              Нэвтэрсэн: <span className="font-bold text-ink">{signedInEmail}</span>
+            </p>
+          ) : (
+            <>
+              <label className="block text-sm font-bold text-muted" htmlFor="magic-email">
+                И-мэйлээр нэвтрэх (заавал биш)
+                <div className="mt-2 flex gap-2">
+                  <input
+                    id="magic-email"
+                    type="email"
+                    value={magicEmail}
+                    onChange={(event) => {
+                      setMagicEmail(event.target.value)
+                      setMagicMessage(null)
+                    }}
+                    placeholder="you@example.com"
+                    className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-ink outline-none focus:border-cyan/60"
+                  />
+                  <Button
+                    variant="ghost"
+                    className="shrink-0 px-4 py-3 text-sm"
+                    disabled={magicBusy || !magicEmail.includes('@')}
+                    onClick={() => void handleMagicLink()}
+                  >
+                    {magicBusy ? '…' : 'Илгээх'}
+                  </Button>
+                </div>
+              </label>
+              {magicMessage && (
+                <p
+                  className={`mt-2 text-sm ${
+                    magicMessage.includes('илгээлээ') ? 'text-cyan' : 'text-pink'
+                  }`}
+                >
+                  {magicMessage}
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </section>
 
       {/* Mode toggle */}
