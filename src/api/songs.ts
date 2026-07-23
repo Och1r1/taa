@@ -84,8 +84,13 @@ export async function fetchSongsByArtistSlug(slug: string): Promise<Song[]> {
   }))
 }
 
-/** Resolve a Storage object path to a public URL. */
+/**
+ * Resolve a stored media reference to a loadable URL. A value that is already an
+ * absolute http(s) URL (an item served straight from an external link) is
+ * returned as-is; anything else is treated as a Storage object path.
+ */
 export function resolveMediaUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path
   const { data } = supabase.storage.from(AUDIO_BUCKET).getPublicUrl(path)
   return data.publicUrl
 }

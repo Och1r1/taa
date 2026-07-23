@@ -175,7 +175,7 @@ async function extractFrameFromVideo(videoId, start, outBase) {
 /** Default media type for a category. */
 function mediaForCategory(category) {
   if (category === 'movie') return 'video'
-  if (category === 'actor') return 'image'
+  if (category === 'actor' || category === 'cartoon') return 'image'
   return 'audio'
 }
 
@@ -260,9 +260,24 @@ async function main() {
 
       let resolvedTitle = song.title
       let mediaPath
+      // When set, the item is served straight from this external URL — no
+      // download, no Storage upload; the URL itself is stored in audio_path.
+      let externalUrl = null
 
-      if (mediaType === 'image' && song.imageUrl) {
-        // Direct image URL — no YouTube needed.
+      if (mediaType === 'image' && song.localImage) {
+        // Hand-prepared local file (e.g. an edited image) — upload it as-is.
+        log(`  ⬇   ${label} — local image ${song.localImage}`)
+        mediaPath = song.localImage
+      } else if (
+        mediaType === 'image' &&
+        song.imageUrl &&
+        (song.linkImage ?? defaults.linkImages)
+      ) {
+        // Link-only: keep the remote URL, let the app load it from the link.
+        log(`  🔗  ${label} — external link (no download)`)
+        externalUrl = song.imageUrl
+      } else if (mediaType === 'image' && song.imageUrl) {
+        // Direct image URL — download and re-host in Storage.
         log(`  ⬇   ${label} — image`)
         mediaPath = await downloadImageFromUrl(song.imageUrl, outBase)
       } else {
@@ -291,13 +306,18 @@ async function main() {
         }
       }
 
-      // Upload to Storage.
-      const objectPath = `${artist.slug}/${slug}.${ext}`
-      const bytes = await readFile(mediaPath)
-      const { error: sErr } = await supabase.storage
-        .from(BUCKET)
-        .upload(objectPath, bytes, { contentType, upsert: true })
-      if (sErr) throw new Error(`Storage upload failed: ${sErr.message}`)
+      // Upload to Storage (unless the item is served from an external link).
+      let storedPath = externalUrl
+      let bytes = null
+      if (!externalUrl) {
+        const objectPath = `${artist.slug}/${slug}.${ext}`
+        bytes = await readFile(mediaPath)
+        const { error: sErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(objectPath, bytes, { contentType, upsert: true })
+        if (sErr) throw new Error(`Storage upload failed: ${sErr.message}`)
+        storedPath = objectPath
+      }
 
       // Insert (or update) the DB row. snippet_start = 0 because the file is the clip.
       const difficulty = Number(song.difficulty ?? defaults.difficulty ?? 2)
@@ -307,7 +327,7 @@ async function main() {
       const row = {
         artist_id: artistId,
         title: resolvedTitle,
-        audio_path: objectPath,
+        audio_path: storedPath,
         media_type: mediaType,
         snippet_start: 0,
         snippet_duration: duration,
@@ -321,8 +341,8 @@ async function main() {
         if (error) throw new Error(`DB insert failed: ${error.message}`)
       }
 
-      const kb = Math.round(bytes.length / 1024)
-      log(`  ✅  ${resolvedTitle} — ${objectPath} (${kb} KB)`)
+      const size = bytes ? ` (${Math.round(bytes.length / 1024)} KB)` : ' (linked)'
+      log(`  ✅  ${resolvedTitle} — ${storedPath}${size}`)
       added++
     } catch (err) {
       console.error(`  ✖  ${label} — ${err.message}`)
