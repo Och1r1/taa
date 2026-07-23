@@ -26,7 +26,7 @@ import type {
 
 const REVEAL_HOLD_MS = 4500
 const COUNTDOWN_SECONDS = 3
-const ROOM_SYNC_MS = 5000
+const ROOM_SYNC_MS = 2500
 const ANSWER_REFRESH_DEBOUNCE_MS = 120
 
 export interface MultiGameState {
@@ -35,6 +35,7 @@ export interface MultiGameState {
   round: RoomRound | null
   answers: RoomAnswer[]
   myAnswer: RoomAnswer | null
+  pendingAnswerSongId: string | null
   timeLeft: number
   countdownLeft: number
   loading: boolean
@@ -111,6 +112,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [answerError, setAnswerError] = useState<string | null>(null)
+  const [pendingAnswerSongId, setPendingAnswerSongId] = useState<string | null>(null)
   const [reconnected, setReconnected] = useState(false)
 
   const poolRef = useRef<Song[]>([])
@@ -141,6 +143,10 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
           answer.playerId === session.playerId && answer.roundIndex === round.roundIndex,
       ) ?? null
     : null
+
+  useEffect(() => {
+    setPendingAnswerSongId(null)
+  }, [round?.roundIndex])
 
   const refreshPlayers = useCallback(async () => {
     const list = await fetchRoomPlayers(session.roomId)
@@ -174,13 +180,20 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       answerRefreshTimerRef.current = window.setTimeout(() => {
         answerRefreshTimerRef.current = null
         void fetchRoundAnswers(session.roomId, roundIndex).then((nextAnswers) => {
-          if (roomRef.current?.currentRoundIndex === roundIndex) setAnswers(nextAnswers)
+          if (roomRef.current?.currentRoundIndex === roundIndex) {
+            setAnswers((current) => {
+              const pending = current.filter(
+                (answer) => answer.playerId === session.playerId && !nextAnswers.some((next) => next.id === answer.id),
+              )
+              return [...nextAnswers, ...pending]
+            })
+          }
         }).catch(() => {
           // Keep the last confirmed answers until the next Realtime event or recovery sync.
         })
       }, ANSWER_REFRESH_DEBOUNCE_MS)
     },
-    [session.roomId],
+    [session.playerId, session.roomId],
   )
 
   // Realtime is the fast path, but browsers can suspend its socket and timers
@@ -448,7 +461,9 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       ) {
         return
       }
+      if (pendingAnswerSongId) return
       setAnswerError(null)
+      setPendingAnswerSongId(songId)
       try {
         const saved = await submitRoomAnswer(
           session.roomId,
@@ -457,14 +472,16 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
           songId,
         )
         setAnswers((prev) => {
+          if (roundRef.current?.roundIndex !== current.roundIndex) return prev
           if (prev.some((a) => a.id === saved.id)) return prev
           return [...prev, saved]
         })
       } catch (err) {
         setAnswerError(err instanceof Error ? err.message : 'Хариулж чадсангүй')
+        setPendingAnswerSongId(null)
       }
     },
-    [session.playerId, session.roomId],
+    [pendingAnswerSongId, session.playerId, session.roomId],
   )
 
   // Host: auto-reveal
@@ -474,18 +491,11 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
 
     // The host is the stage controller, not an answer pad. Counting the host
     // here can make a room advance based on stale/host answers.
-    const answeringPlayers = players.filter(
-      (player) => !player.isHost && player.role !== 'spectator',
-    )
-    const allAnswered =
-      answeringPlayers.length > 0 &&
-      answeringPlayers.every((player) =>
-        answers.some(
-          (answer) => answer.playerId === player.id && answer.roundIndex === round.roundIndex,
-        ),
-      )
     const timedOut = timeLeft <= 0 && Date.now() >= new Date(round.endsAt).getTime()
-    if (!allAnswered && !timedOut) return
+    // Keep each round open until its server deadline. Advancing immediately
+    // after the final answer makes the visible counter look broken and gives
+    // players no time to confirm their selection.
+    if (!timedOut) return
     if (revealingRef.current) return
     revealingRef.current = true
 
@@ -499,8 +509,6 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     session.roomId,
     room,
     round,
-    players,
-    answers,
     timeLeft,
   ])
 
@@ -616,6 +624,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     round,
     answers,
     myAnswer,
+    pendingAnswerSongId,
     timeLeft,
     countdownLeft,
     loading,

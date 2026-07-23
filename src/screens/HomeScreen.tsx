@@ -39,8 +39,8 @@ interface Props {
 const MIN_SONGS = 4 // need at least 4 items to fill the answer options
 const MAX_POINTS = 1000
 
-const ROUND_OPTIONS = [3, 5, 10]
-const TIME_OPTIONS = [10, 15, 20, 30]
+const ROUND_OPTIONS = [3, 5, 10, 15]
+const TIME_OPTIONS = [10, 15, 20, 30, 45]
 const VISIBLE_CATEGORY_COUNT = 6
 const LOBBY_REFRESH_MS = 15000
 
@@ -82,7 +82,7 @@ export function HomeScreen({ onStart, onStartDaily, onEnterLobby, onOpenAccount 
   const [artistError, setArtistError] = useState<string | null>(null)
 
   const [rounds, setRounds] = useState(5)
-  const [timePerRound, setTimePerRound] = useState(15)
+  const [timePerRound, setTimePerRound] = useState(20)
   const [nickname, setNickname] = useState('')
   const [joinPin, setJoinPin] = useState(() => readJoinParamsFromUrl().pin ?? '')
   const [joinInvite, setJoinInvite] = useState(() => readJoinParamsFromUrl().invite ?? '')

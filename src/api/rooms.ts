@@ -750,6 +750,25 @@ export async function beginRoomCountdown(roomId: string, seconds = 3): Promise<G
   return toRoom(data as RoomRow)
 }
 
+/** Host-only lobby configuration. Settings become locked once the game starts. */
+export async function updateRoomConfig(
+  roomId: string,
+  config: GameConfig,
+): Promise<GameRoom> {
+  const { data, error } = await supabase.rpc('update_room_config', {
+    p_room_id: roomId,
+    p_rounds: config.rounds,
+    p_time_per_round: config.timePerRound,
+  })
+  if (error) {
+    if (error.message.includes('Could not find the function')) {
+      throw new Error('Өрөөний тохиргоо идэвхжээгүй байна. supabase/room-config.sql-ийг ажиллуулна уу.')
+    }
+    throw new Error(rpcMessage(error))
+  }
+  return toRoom(data as RoomRow)
+}
+
 /** Touch last_seen so the host can prune disconnected guests. */
 export async function heartbeatRoomPlayer(roomId: string, playerId: string): Promise<void> {
   await ensureAnonymousUser()

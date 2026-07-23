@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
-import { assignRoomTeam, beginRoomCountdown, closeRoom, kickRoomPlayer, leaveRoom, rotateRoomInvite, saveMultiSession } from '../api/rooms'
+import {
+  assignRoomTeam,
+  beginRoomCountdown,
+  closeRoom,
+  kickRoomPlayer,
+  leaveRoom,
+  rotateRoomInvite,
+  saveMultiSession,
+  updateRoomConfig,
+} from '../api/rooms'
+import { PillToggle } from '../components/PillToggle'
 import { useRoomPresence } from '../game/useRoomPresence'
 import { buildRoomShareUrl } from '../lib/joinUrl'
 import type { GameRoom, MultiSession, RoomPlayer } from '../types'
@@ -36,6 +46,9 @@ export function LobbyScreen({
   const [rotating, setRotating] = useState(false)
   const [assigningId, setAssigningId] = useState<string | null>(null)
   const [presenterMode, setPresenterMode] = useState(false)
+  const [configBusy, setConfigBusy] = useState(false)
+  const [lobbyRounds, setLobbyRounds] = useState(room?.rounds ?? 5)
+  const [lobbyTimePerRound, setLobbyTimePerRound] = useState(room?.timePerRound ?? 20)
 
   const closed = Boolean(!loading && (!room || room.status === 'closed'))
   const pin = room?.pin ?? session.pin
@@ -55,6 +68,12 @@ export function LobbyScreen({
   const spectators = players.filter((player) => player.role === 'spectator')
   const presenceEnabled = Boolean(room && room.status === 'lobby' && !closed)
   const { onlineIds } = useRoomPresence(session, players, presenceEnabled)
+
+  useEffect(() => {
+    if (!room || room.status !== 'lobby') return
+    setLobbyRounds(room.rounds)
+    setLobbyTimePerRound(room.timePerRound)
+  }, [room?.id, room?.rounds, room?.status, room?.timePerRound])
 
   // Guest was removed (kick / idle prune) — leave the local session cleanly.
   useEffect(() => {
@@ -88,6 +107,23 @@ export function LobbyScreen({
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Эхлүүлж чадсангүй')
       setStarting(false)
+    }
+  }
+
+  async function handleSaveConfig() {
+    if (!session.isHost || !room) return
+    setConfigBusy(true)
+    setActionError(null)
+    try {
+      await updateRoomConfig(session.roomId, {
+        rounds: lobbyRounds,
+        timePerRound: lobbyTimePerRound,
+        maxPoints: room.maxPoints,
+      })
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Тохиргоог хадгалж чадсангүй')
+    } finally {
+      setConfigBusy(false)
     }
   }
 
@@ -276,6 +312,45 @@ export function LobbyScreen({
                 </button>
               </div>
             </div>
+          )}
+
+          {session.isHost && room && (
+            <section className="mt-6 rounded-2xl border border-border bg-surface p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-muted-2">Тоглоомын тохиргоо</div>
+                  <p className="mt-1 text-sm text-muted">Эхлүүлэхээс өмнө раунд болон хугацааг өөрчилж болно.</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  disabled={
+                    configBusy ||
+                    (lobbyRounds === room.rounds && lobbyTimePerRound === room.timePerRound)
+                  }
+                  onClick={() => void handleSaveConfig()}
+                >
+                  {configBusy ? 'Хадгалж байна…' : 'Хадгалах'}
+                </Button>
+              </div>
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:gap-10">
+                <div>
+                  <div className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-2">Раунд</div>
+                  <PillToggle
+                    value={lobbyRounds}
+                    onChange={setLobbyRounds}
+                    options={[3, 5, 10, 15].map((value) => ({ value, label: String(value) }))}
+                  />
+                </div>
+                <div>
+                  <div className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-2">Хугацаа</div>
+                  <PillToggle
+                    value={lobbyTimePerRound}
+                    onChange={setLobbyTimePerRound}
+                    options={[10, 15, 20, 30, 45].map((value) => ({ value, label: `${value}с` }))}
+                  />
+                </div>
+              </div>
+            </section>
           )}
 
           {session.isHost && room && (

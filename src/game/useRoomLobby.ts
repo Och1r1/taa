@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchRoom, fetchRoomPlayers } from '../api/rooms'
 import { supabase } from '../lib/supabase'
 import type { GameRoom, RoomPlayer } from '../types'
@@ -10,12 +10,22 @@ interface LobbyState {
   error: string | null
 }
 
+const LOBBY_SYNC_MS = 2500
+
 /** Live lobby: initial fetch + Realtime updates for room status and player list. */
 export function useRoomLobby(roomId: string | null): LobbyState {
   const [room, setRoom] = useState<GameRoom | null>(null)
   const [players, setPlayers] = useState<RoomPlayer[]>([])
   const [loading, setLoading] = useState(Boolean(roomId))
   const [error, setError] = useState<string | null>(null)
+
+  const sync = useCallback(async () => {
+    if (!roomId) return
+    const [nextRoom, nextPlayers] = await Promise.all([fetchRoom(roomId), fetchRoomPlayers(roomId)])
+    setRoom(nextRoom)
+    setPlayers(nextPlayers)
+    if (!nextRoom) setError('Өрөө олдсонгүй.')
+  }, [roomId])
 
   useEffect(() => {
     if (!roomId) {
@@ -30,12 +40,9 @@ export function useRoomLobby(roomId: string | null): LobbyState {
     setLoading(true)
     setError(null)
 
-    Promise.all([fetchRoom(roomId), fetchRoomPlayers(roomId)])
-      .then(([nextRoom, nextPlayers]) => {
+    sync()
+      .then(() => {
         if (cancelled) return
-        setRoom(nextRoom)
-        setPlayers(nextPlayers)
-        if (!nextRoom) setError('Өрөө олдсонгүй.')
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message)
@@ -116,11 +123,19 @@ export function useRoomLobby(roomId: string | null): LobbyState {
       )
       .subscribe()
 
+    const syncAfterResume = () => {
+      if (document.visibilityState === 'visible') void sync().catch(() => undefined)
+    }
+    document.addEventListener('visibilitychange', syncAfterResume)
+    const pollId = window.setInterval(syncAfterResume, LOBBY_SYNC_MS)
+
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', syncAfterResume)
+      window.clearInterval(pollId)
       void supabase.removeChannel(channel)
     }
-  }, [roomId])
+  }, [roomId, sync])
 
   return { room, players, loading, error }
 }

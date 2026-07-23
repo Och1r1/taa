@@ -57,6 +57,8 @@ RUN_LIVE_SUPABASE_TESTS=1 npm test
      sync. Run after `rooms-profiles.sql`; signed-in profiles merge local and server progress safely.
    - `supabase/room-teams.sql` — optional two-team event mode. Run after
      `rooms-rls-auth-host.sql`; hosts can assign teams and export final team/player standings.
+   - `supabase/room-config.sql` — optional host-editable round/time settings in a lobby. Run after
+     `rooms-rls-auth-host.sql`.
    - `supabase/rooms.sql` → `rooms-game.sql` → `rooms-polish.sql` → `rooms-auth.sql` →
      `rooms-leaderboard.sql` → `rooms-private-spectators.sql` → `rooms-profiles.sql` →
      `rooms-rematch.sql` → `rooms-rls-auth-host.sql` → `rooms-rate-limits.sql` →

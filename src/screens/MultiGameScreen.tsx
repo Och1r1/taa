@@ -376,10 +376,10 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
                 key={opt.songId}
                 option={opt}
                 index={i}
-                disabled={isSpectator || revealed || Boolean(game.myAnswer)}
+                disabled={isSpectator || revealed || Boolean(game.myAnswer) || Boolean(game.pendingAnswerSongId)}
                 revealed={revealed}
                 isAnswer={revealed && opt.songId === game.round!.answerSongId}
-                isPicked={!isSpectator && opt.songId === game.myAnswer?.pickedSongId}
+                isPicked={!isSpectator && opt.songId === (game.myAnswer?.pickedSongId ?? game.pendingAnswerSongId)}
                 onPick={(id) => {
                   if (isSpectator) return
                   void game.answer(id)

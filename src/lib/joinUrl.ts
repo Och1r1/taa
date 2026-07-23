@@ -10,20 +10,20 @@ export function normalizeInviteSecret(value: string | null | undefined): string 
   return trimmed.length >= 16 ? trimmed : null
 }
 
-/** Public-room join URL: `/join?pin=123456`. */
+/** Public-room join URL. Query links work on every static host, including Vercel. */
 export function buildJoinUrl(pin: string, origin = window.location.origin): string {
   const clean = normalizeJoinPin(pin)
   if (!clean) throw new Error('PIN 6 оронтой байх ёстой')
-  const url = new URL('/join', origin)
+  const url = new URL('/', origin)
   url.searchParams.set('pin', clean)
   return url.toString()
 }
 
-/** Private-room invite URL: `/join?invite=…`. */
+/** Private-room invite URL. */
 export function buildInviteUrl(inviteSecret: string, origin = window.location.origin): string {
   const clean = normalizeInviteSecret(inviteSecret)
   if (!clean) throw new Error('Урилга буруу байна')
-  const url = new URL('/join', origin)
+  const url = new URL('/', origin)
   url.searchParams.set('invite', clean)
   return url.toString()
 }

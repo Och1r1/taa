@@ -64,6 +64,9 @@ export function LeaderboardScreen() {
     let cancelled = false
     setLoading(true)
     setError(null)
+    // Do not show the previous category's results while the new category is loading.
+    setScores([])
+    setHasMore(false)
     fetchTopScoresForCategory(category, {
       mode: modeFilter === 'all' ? undefined : modeFilter,
       since: periodFilter === 'season' ? seasonStart() : undefined,
