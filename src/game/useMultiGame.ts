@@ -128,6 +128,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
   const answersRef = useRef<RoomAnswer[]>([])
   const roundRequestRef = useRef(0)
   const syncRequestRef = useRef(0)
+  const roomEventVersionRef = useRef(0)
   const sawLobbyRef = useRef(false)
   const answerRefreshTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
@@ -202,9 +203,14 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
   // needs to refresh to recover from missed events.
   const syncRoomState = useCallback(async () => {
     const requestId = ++syncRequestRef.current
+    const eventVersion = roomEventVersionRef.current
     const nextRoom = await fetchRoom(session.roomId)
     const nextPlayers = await fetchRoomPlayers(session.roomId)
-    if (requestId !== syncRequestRef.current) return nextRoom
+    // Do not let a poll that started before a Realtime event overwrite the
+    // newer room status (especially revealing → countdown → playing).
+    if (requestId !== syncRequestRef.current || eventVersion !== roomEventVersionRef.current) {
+      return roomRef.current
+    }
 
     setRoom(nextRoom)
     setPlayers(nextPlayers)
@@ -250,6 +256,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${session.roomId}` },
         (payload) => {
+          roomEventVersionRef.current += 1
           if (payload.eventType === 'DELETE') {
             setRoom(null)
             return
@@ -540,7 +547,15 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       window.clearTimeout(timer)
       advancingRef.current = false
     }
-  }, [session.isHost, session.roomId, room, round])
+  }, [
+    session.isHost,
+    session.roomId,
+    room?.status,
+    room?.currentRoundIndex,
+    room?.rounds,
+    round?.status,
+    round?.roundIndex,
+  ])
 
   // Host: countdown finished → publish round
   useEffect(() => {
