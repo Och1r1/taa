@@ -7,8 +7,49 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const live = Boolean(url && anonKey && serviceKey)
 
+/** Prefix for all RPC test nicknames — used to purge leaderboard rows on teardown. */
+const TEST_NICK_PREFIX = 'vitest-'
+
+/** Orphaned rows from before the vitest- prefix (room delete nulls room_id). */
+const LEGACY_TEST_NICKNAMES = [
+  'HostTest',
+  'GuestTest',
+  'HostAuth',
+  'GuestAuth',
+  'PrivHost',
+  'NoInvite',
+  'WithInvite',
+  'GuestRefresh',
+  'GuestRls',
+  'GuestLeave',
+  'IdleGuest',
+  'RematchGuest',
+  'Watcher',
+  'SchemaCheck',
+]
+
 function randomPin(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
+}
+
+function testNick(suffix: string): string {
+  return `${TEST_NICK_PREFIX}${suffix}`
+}
+
+async function purgeTestLeaderboardRows(admin: SupabaseClient): Promise<void> {
+  await admin.from('scores').delete().eq('mode', 'multi').like('player_name', `${TEST_NICK_PREFIX}%`)
+  if (LEGACY_TEST_NICKNAMES.length > 0) {
+    await admin.from('scores').delete().eq('mode', 'multi').in('player_name', LEGACY_TEST_NICKNAMES)
+  }
+}
+
+async function teardownTestRooms(admin: SupabaseClient, roomIds: string[]): Promise<void> {
+  const ids = [...new Set(roomIds.filter(Boolean))]
+  if (ids.length > 0) {
+    await admin.from('scores').delete().in('room_id', ids)
+    await admin.from('rooms').delete().in('id', ids)
+  }
+  await purgeTestLeaderboardRows(admin)
 }
 
 async function anonClient(): Promise<SupabaseClient> {
@@ -23,7 +64,7 @@ async function anonClient(): Promise<SupabaseClient> {
 async function createPublicLobby(host: SupabaseClient, pin = randomPin()) {
   const { data, error } = await host.rpc('create_room', {
     p_pin: pin,
-    p_host_nickname: 'HostTest',
+    p_host_nickname: testNick('host'),
     p_artist_slug: 'vandebo',
     p_category: 'songs',
     p_rounds: 3,
@@ -39,17 +80,16 @@ describe.skipIf(!live)('multiplayer RPCs (live Supabase)', () => {
   const createdRoomIds: string[] = []
   let admin: SupabaseClient
 
-  beforeAll(() => {
+  beforeAll(async () => {
     admin = createClient(url!, serviceKey!, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
+    await purgeTestLeaderboardRows(admin)
   })
 
   afterAll(async () => {
-    if (!admin || createdRoomIds.length === 0) return
-    for (const id of createdRoomIds) {
-      await admin.from('rooms').delete().eq('id', id)
-    }
+    if (!admin) return
+    await teardownTestRooms(admin, createdRoomIds)
   })
 
   it('create_room seats Auth host without host_token', async () => {
@@ -57,7 +97,7 @@ describe.skipIf(!live)('multiplayer RPCs (live Supabase)', () => {
     const pin = randomPin()
     const { data, error } = await host.rpc('create_room', {
       p_pin: pin,
-      p_host_nickname: 'HostTest',
+      p_host_nickname: testNick('host'),
       p_artist_slug: 'vandebo',
       p_category: 'songs',
       p_rounds: 3,
@@ -74,7 +114,7 @@ describe.skipIf(!live)('multiplayer RPCs (live Supabase)', () => {
     const guest = await anonClient()
     const join = await guest.rpc('join_room', {
       p_pin: pin,
-      p_nickname: 'GuestTest',
+      p_nickname: testNick('guest'),
     })
     expect(join.error).toBeNull()
     expect(join.data?.player?.is_host).toBe(false)
@@ -85,7 +125,7 @@ describe.skipIf(!live)('multiplayer RPCs (live Supabase)', () => {
     const pin = randomPin()
     const created = await host.rpc('create_room', {
       p_pin: pin,
-      p_host_nickname: 'HostAuth',
+      p_host_nickname: testNick('host-auth'),
       p_artist_slug: 'vandebo',
       p_category: 'songs',
       p_rounds: 3,
@@ -95,7 +135,7 @@ describe.skipIf(!live)('multiplayer RPCs (live Supabase)', () => {
     createdRoomIds.push(created.data.room.id)
 
     const guest = await anonClient()
-    await guest.rpc('join_room', { p_pin: pin, p_nickname: 'GuestAuth' })
+    await guest.rpc('join_room', { p_pin: pin, p_nickname: testNick('guest-auth') })
     const finish = await guest.rpc('finish_room_game', {
       p_room_id: created.data.room.id,
     })
@@ -107,7 +147,7 @@ describe.skipIf(!live)('multiplayer RPCs (live Supabase)', () => {
     const pin = randomPin()
     const created = await host.rpc('create_room', {
       p_pin: pin,
-      p_host_nickname: 'PrivHost',
+      p_host_nickname: testNick('priv-host'),
       p_artist_slug: 'vandebo',
       p_category: 'songs',
       p_rounds: 3,
@@ -121,13 +161,13 @@ describe.skipIf(!live)('multiplayer RPCs (live Supabase)', () => {
     const guest = await anonClient()
     const blocked = await guest.rpc('join_room', {
       p_pin: pin,
-      p_nickname: 'NoInvite',
+      p_nickname: testNick('no-invite'),
     })
     expect(blocked.error).toBeTruthy()
 
     const ok = await guest.rpc('join_room', {
       p_pin: pin,
-      p_nickname: 'WithInvite',
+      p_nickname: testNick('with-invite'),
       p_invite: created.data.invite_secret,
     })
     expect(ok.error).toBeNull()
@@ -138,16 +178,15 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
   const createdRoomIds: string[] = []
   let admin: SupabaseClient
 
-  beforeAll(() => {
+  beforeAll(async () => {
     admin = createClient(url!, serviceKey!, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
+    await purgeTestLeaderboardRows(admin)
   })
 
   afterAll(async () => {
-    for (const id of createdRoomIds) {
-      await admin.from('rooms').delete().eq('id', id)
-    }
+    await teardownTestRooms(admin, createdRoomIds)
   })
 
   it('host refresh: re-join returns same player seat', async () => {
@@ -155,7 +194,7 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     const { pin, roomId, hostPlayerId } = await createPublicLobby(host)
     createdRoomIds.push(roomId)
 
-    const again = await host.rpc('join_room', { p_pin: pin, p_nickname: 'HostTest' })
+    const again = await host.rpc('join_room', { p_pin: pin, p_nickname: testNick('host') })
     expect(again.error).toBeNull()
     expect(again.data?.player?.id).toBe(hostPlayerId)
   })
@@ -166,11 +205,11 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     createdRoomIds.push(roomId)
 
     const guest = await anonClient()
-    const joined = await guest.rpc('join_room', { p_pin: pin, p_nickname: 'GuestRefresh' })
+    const joined = await guest.rpc('join_room', { p_pin: pin, p_nickname: testNick('guest-refresh') })
     expect(joined.error).toBeNull()
     const guestPlayerId = joined.data?.player?.id
 
-    const again = await guest.rpc('join_room', { p_pin: pin, p_nickname: 'GuestRefresh' })
+    const again = await guest.rpc('join_room', { p_pin: pin, p_nickname: testNick('guest-refresh') })
     expect(again.error).toBeNull()
     expect(again.data?.player?.id).toBe(guestPlayerId)
   })
@@ -181,7 +220,7 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     createdRoomIds.push(roomId)
 
     const guest = await anonClient()
-    await guest.rpc('join_room', { p_pin: pin, p_nickname: 'GuestRls' })
+    await guest.rpc('join_room', { p_pin: pin, p_nickname: testNick('guest-rls') })
 
     const roomRead = await guest.from('rooms').select('id, status, pin').eq('id', roomId).single()
     expect(roomRead.error).toBeNull()
@@ -198,7 +237,7 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     createdRoomIds.push(roomId)
 
     const guest = await anonClient()
-    await guest.rpc('join_room', { p_pin: pin, p_nickname: 'GuestLeave' })
+    await guest.rpc('join_room', { p_pin: pin, p_nickname: testNick('guest-leave') })
 
     const leave = await host.rpc('leave_room', {
       p_room_id: roomId,
@@ -219,7 +258,7 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     createdRoomIds.push(roomId)
 
     const guest = await anonClient()
-    const joined = await guest.rpc('join_room', { p_pin: pin, p_nickname: 'IdleGuest' })
+    const joined = await guest.rpc('join_room', { p_pin: pin, p_nickname: testNick('idle-guest') })
     const guestPlayerId = joined.data?.player?.id as string
 
     await admin
@@ -265,7 +304,7 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     const spectator = await anonClient()
     const joined = await spectator.rpc('join_room_spectator', {
       p_pin: pin,
-      p_nickname: 'Watcher',
+      p_nickname: testNick('watcher'),
     })
     expect(joined.error).toBeNull()
     const spectatorId = joined.data?.player?.id as string
@@ -297,7 +336,7 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     createdRoomIds.push(roomId)
 
     const guest = await anonClient()
-    await guest.rpc('join_room', { p_pin: pin, p_nickname: 'RematchGuest' })
+    await guest.rpc('join_room', { p_pin: pin, p_nickname: testNick('rematch-guest') })
 
     const finished = await host.rpc('finish_room_game', { p_room_id: roomId })
     expect(finished.error).toBeNull()
@@ -332,7 +371,7 @@ describe.skipIf(!live)('multiplayer manual matrix (live Supabase)', () => {
     const pin = randomPin()
     const priv = await privateHost.rpc('create_room', {
       p_pin: pin,
-      p_host_nickname: 'PrivHost',
+      p_host_nickname: testNick('priv-host'),
       p_artist_slug: 'vandebo',
       p_category: 'songs',
       p_rounds: 3,
