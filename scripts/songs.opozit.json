@@ -1,0 +1,21 @@
+{
+  "artist": { "name": "Opozit", "slug": "opozit", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "Neeh Tiim Goy Baidag Te", "slug": "neeh-tiim-goy-baidag-te", "youtubeUrl": "https://youtu.be/_frs1-mrTFI" },
+    { "title": "Wow", "slug": "wow", "youtubeUrl": "https://youtu.be/6Hd6P7_mSpQ" },
+    { "title": "Hamgiin saihan n", "slug": "hamgiin-saihan-n", "youtubeUrl": "https://youtu.be/kgx4sVtWYBI" },
+    { "title": "UULEN DEEGUUR", "slug": "uulen-deeguur", "youtubeUrl": "https://youtu.be/fbtXxRm8--E" },
+    { "title": "Bolor Tsom", "slug": "bolor-tsom", "youtubeUrl": "https://youtu.be/I_swNLGOcLE" },
+    { "title": "Metronii Buudliin Utasnii Buheeg", "slug": "metronii-buudliin-utasnii-buheeg", "youtubeUrl": "https://youtu.be/_xBMLDFpqGU" },
+    { "title": "Hurim", "slug": "hurim", "youtubeUrl": "https://youtu.be/rg0KzIXexL8" },
+    { "title": "Toxyo", "slug": "toxyo", "youtubeUrl": "https://youtu.be/gTBLZqvbfZM" },
+    { "title": "Hairtai", "slug": "hairtai", "youtubeUrl": "https://youtu.be/M7TXYPnKEyY" },
+    { "title": "Driftworks", "slug": "driftworks", "youtubeUrl": "https://youtu.be/0w5iixxzi9k" },
+    { "title": "DANDAA DENDUU DAAM", "slug": "dandaa-denduu-daam", "youtubeUrl": "https://youtu.be/24g8DX6i9Mg" },
+    { "title": "Uur savsana", "slug": "uur-savsana", "youtubeUrl": "https://youtu.be/AdGIzCq6RFE" },
+    { "title": "Tsagiin oyo", "slug": "tsagiin-oyo", "youtubeUrl": "https://youtu.be/e8qFwgiiKFY" },
+    { "title": "CHAMD SAIN BOLSON ZALUU", "slug": "chamd-sain-bolson-zaluu", "youtubeUrl": "https://youtu.be/2YqzOukK4Js" },
+    { "title": "Anhaliun", "slug": "anhaliun", "youtubeUrl": "https://youtu.be/rJLutUW03Xw" }
+  ]
+}

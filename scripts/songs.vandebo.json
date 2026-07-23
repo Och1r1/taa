@@ -47,6 +47,22 @@
       "title": "Намайг Тоо",
       "slug": "namaigtoo",
       "query": "Vandebo Намайг Тоо"
-    }
+    },
+    { "title": "Hamt", "slug": "hamt", "youtubeUrl": "https://youtu.be/noJFDOBirbI" },
+    { "title": "X", "slug": "x", "youtubeUrl": "https://youtu.be/KEOoNnMypgo" },
+    { "title": "Tsoriin gants", "slug": "tsoriin-gants", "youtubeUrl": "https://youtu.be/PO2tKcyTW8U" },
+    { "title": "D City 11pm", "slug": "d-city-11pm", "youtubeUrl": "https://youtu.be/kx3rRQxfE1M" },
+    { "title": "Kalash", "slug": "kalash", "youtubeUrl": "https://youtu.be/72_egH3UO6g" },
+    { "title": "Hyazgaar", "slug": "hyazgaar", "youtubeUrl": "https://youtu.be/F3Zqbg2hzW4" },
+    { "title": "Suicide", "slug": "suicide", "youtubeUrl": "https://youtu.be/l9-gXgDoBSk" },
+    { "title": "Bitgii uil", "slug": "bitgii-uil", "youtubeUrl": "https://youtu.be/4pLS1t-BjeY" },
+    { "title": "Zundunu", "slug": "zundunu", "youtubeUrl": "https://youtu.be/OGuEJOuFKj0" },
+    { "title": "Trap Symphone", "slug": "trap-symphone", "youtubeUrl": "https://youtu.be/bwbhPUze6QU" },
+    { "title": "Zenly", "slug": "zenly", "youtubeUrl": "https://youtu.be/lgF-lq67NLQ" },
+    { "title": "Reves", "slug": "reves", "youtubeUrl": "https://youtu.be/vNWQT7qaxrQ" },
+    { "title": "Olon", "slug": "olon", "youtubeUrl": "https://youtu.be/-pvHYEU2z1o" },
+    { "title": "Aaban beeben", "slug": "aaban-beeben", "youtubeUrl": "https://youtu.be/13LX0HhbXcc" },
+    { "title": "Mangar tom zurkh", "slug": "mangar-tom-zurkh", "youtubeUrl": "https://youtu.be/USPhh7yXgus" },
+    { "title": "LIGHTIN4LIFE", "slug": "lightin4life", "youtubeUrl": "https://youtu.be/dDrABUvaQ0w" }
   ]
 }

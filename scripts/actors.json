@@ -1,5 +1,9 @@
 {
-  "artist": { "name": "Монгол жүжигчид", "slug": "mongol-actors", "category": "actor" },
+  "artist": {
+    "name": "Монгол жүжигчид",
+    "slug": "mongol-actors",
+    "category": "actor"
+  },
   "songs": [
     {
       "title": "Мөнхсайхан",
@@ -40,6 +44,391 @@
       "title": "Золбоот",
       "slug": "actor-8",
       "imageUrl": "https://seen.mn/wp-content/uploads/2021/09/17site_H4uuogB.jpeg"
+    },
+    {
+      "title": "Төмөрхуяг",
+      "slug": "actor-9",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTRETFaDkeG966Q1pm3NAPaGPIX5kF5ZOVozlenQAg027M-iWjikyenq_5j&s=10"
+    },
+    {
+      "title": "Баттогтох",
+      "slug": "actor-10",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/670c7dedebb6a162693636.jpg"
+    },
+    {
+      "title": "Баярбат",
+      "slug": "actor-11",
+      "imageUrl": "https://review.somedia.mn/wp-content/uploads/2024/07/%D0%B1%D0%B0%D1%8F%D1%80%D0%B1%D0%B0%D1%82-4.jpg"
+    },
+    {
+      "title": "Алдар",
+      "slug": "actor-12",
+      "imageUrl": "https://www.zindaa.mn/uploads/images/aldd.jpg"
+    },
+    {
+      "title": "Бямбацогт",
+      "slug": "actor-13",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/66823f2dba944812736986.jpg"
+    },
+    {
+      "title": "Самданпүрэв",
+      "slug": "actor-14",
+      "imageUrl": "https://www.tac.mn/wp-content/uploads/2023/08/IMG_8268.jpeg"
+    },
+    {
+      "title": "Баттулга",
+      "slug": "actor-15",
+      "imageUrl": "https://tac.mn/wp-content/uploads/2020/11/9AE8824D-66E0-4DD7-99B5-C79A29F11490.jpeg"
+    },
+    {
+      "title": "Цогтбаяр",
+      "slug": "actor-16",
+      "imageUrl": "https://tac.mn/wp-content/uploads/2021/09/D846F00F-31A2-4CAE-8DDF-1FD5DD8791CA.jpeg"
+    },
+    {
+      "title": "Батмэнд",
+      "slug": "actor-17",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlCwcfcB5a6tJJSWdJ2HEymGSJ8STUHHe5OvU2p0CKlZzS9uTDinm8vXs&s=10"
+    },
+    {
+      "title": "Мөнхбаяр",
+      "slug": "actor-18",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/670c7b4d988ff011189257.jpg"
+    },
+    {
+      "title": "Болд-Эрдэнэ",
+      "slug": "actor-19",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f4/Bold-erdene.jpg"
+    },
+    {
+      "title": "Даваасамба",
+      "slug": "actor-20",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLIH_pY34qRzzLp6lsPeoJepHQaqV5S4WpycKu3CDp_ZjR4S4mpBk0DHFg&s=10"
+    },
+    {
+      "title": "Тодгэрэл",
+      "slug": "actor-21",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/666ff487de970449720208.jpg"
+    },
+    {
+      "title": "Батнямбуу",
+      "slug": "actor-22",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/668371317fea8657070690.jpg"
+    },
+    {
+      "title": "Ялалт",
+      "slug": "actor-23",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ6ogthxxoCEbT7r67qNs5cgyQ7RPN9p7c_rV2P19xACg&s=10"
+    },
+    {
+      "title": "Ариунбямба",
+      "slug": "actor-24",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/66e10e530b83b359219119.jpg"
+    },
+    {
+      "title": "Доржсүрэн",
+      "slug": "actor-25",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/6683711e738c6615049880.jpg"
+    },
+    {
+      "title": "Одбаяр",
+      "slug": "actor-26",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTxEnjIRGiGFLr1dmECJPkSvQN4PTEnUAhU5QMNgYettmOMoXpYMJilr_le&s=10"
+    },
+    {
+      "title": "Ганчулуун",
+      "slug": "actor-27",
+      "imageUrl": "https://www.tac.mn/wp-content/uploads/2024/07/IMG_9719.jpeg"
+    },
+    {
+      "title": "Барслхагва",
+      "slug": "actor-28",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRY-TJ9GYfxXGX4RupvYBO32XozfFZRJgWXglg8OJxxhW7NjoiHccQYWtu3&s=10"
+    },
+    {
+      "title": "Алтаншагай 'Мөрөөдөл'",
+      "slug": "actor-29",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEk6Z6woacihVzuviccOa1fhiYkHiz8DbjBqm9f4f5jJMc9Z9ktfuCrT_k&s=10"
+    },
+    {
+      "title": "Төмөрбаатар",
+      "slug": "actor-30",
+      "imageUrl": "https://mnb.mn/uploads/202110/news/thumb/50e556e8c931c4d4ed2e1984d1c8357e_x3.jpg"
+    },
+    {
+      "title": "Тамир",
+      "slug": "actor-31",
+      "imageUrl": "https://review.somedia.mn/wp-content/uploads/2024/05/IMG_1550.jpg"
+    },
+    {
+      "title": "Амарсайхан",
+      "slug": "actor-32",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/6653f9bb41bf9614987254.jpg"
+    },
+    {
+      "title": "Баярмагнай",
+      "slug": "actor-33",
+      "imageUrl": "https://dorgio.mn//uploads/2019/04/9b9ae6be38fde140b4062521899ae01b.jpg"
+    },
+    {
+      "title": "Батхуяг",
+      "slug": "actor-34",
+      "imageUrl": "https://news.mn/wp-content/archive1/show/photo/2013/4/92512b2262be3e15/3db6799620e9b9f8big.jpg"
+    },
+    {
+      "title": "Хүрэлхүү",
+      "slug": "actor-35",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTdrD8SRyK56EWLH54E5oi_-pRWGky_7cVss_VbrkFjDW4AVrm4W6x2eww&s=10"
+    },
+    {
+      "title": "Билгүүн",
+      "slug": "actor-36",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ8mvVqhOC51eBipcBBDSmYKPNj2AdsreH6TQ9Y73SQWTeIazuDLCtJkjl2&s=10"
+    },
+    {
+      "title": "Түвшинтөр",
+      "slug": "actor-37",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRulHOp7HGpeQRjgWQgmG0K-AyZckY4S1U7bLbvFxd3AC2ZZNuLMqXrLPPQ&s=10"
+    },
+    {
+      "title": "Тэмүүжин",
+      "slug": "actor-38",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/66d7dc09ecd9c766865510.jpg"
+    },
+    {
+      "title": "Лхагвасүрэн",
+      "slug": "actor-39",
+      "imageUrl": "https://www.zangia.mn/_next/image?url=https%3A%2F%2Fcdn.zangia.mn%2Fc%2F1401%2F%2FV5-U7ZQUWI-DQAWWDN-648OHP6-60.jpg&w=1200&q=75"
+    },
+    {
+      "title": "Дэлгэрсайхан",
+      "slug": "actor-40",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLsoXOwagttxqQ81CZ_8o2J7DoZS6P6dtIWqJXtE4PmiyoaMP9NjM5Luap&s=10"
+    },
+    {
+      "title": "Сөрөлт",
+      "slug": "actor-41",
+      "imageUrl": "https://news.mn/wp-content/archive3/Lifestyle/cmExSpGISurult626121002015-12-10-13-15[www.urlag.mn].jpg"
+    },
+    {
+      "title": "Онон",
+      "slug": "actor-42",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/6699dbb1acbda725176373.jpg"
+    },
+    {
+      "title": "Ганбаяр",
+      "slug": "actor-43",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTWQvh0JvOPBYj6z97ObvSY13fst7MxwOznFx6PvQrINmSHxDQtCT4izvMw&s=10"
+    },
+    {
+      "title": "Баатархүү",
+      "slug": "actor-44",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSxBRTWBUR80KixFJYO26k8HdH3mCrFDz_W8mLjS5WiDf9yidRXpStBhw-C&s=10"
+    },
+    {
+      "title": "Алтансүх 'Аси'",
+      "slug": "actor-45",
+      "imageUrl": "https://news.mn/wp-content/archive1/yellow/photo/2014/11/24/6aae45fdf6ac86ed679889803ac1cbafbig.jpg"
+    },
+    {
+      "title": "Дэмидбаатар",
+      "slug": "actor-46",
+      "imageUrl": "https://content.ikon.mn/news/2021/6/8/wbez4i_39942821_136541317279935_1406741083819343872_n_x800.jpg"
+    },
+    {
+      "title": "Алтаншагай 'Fantastic",
+      "slug": "actor-47",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6N1LHqM0TsW0DX4qBCBnEFHPcRlU5pSOkpaobI-oPEBYK2DEouqqbAPI&s=10"
+    },
+    {
+      "title": "Батсайхан",
+      "slug": "actor-48",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSdaB64fGBbATlh3Xq_f6ko2rZnsuE0KjyZEKT04HY-czpAczaOkYylHKHv&s=10"
+    },
+    {
+      "title": "Мөнхтөр",
+      "slug": "actor-49",
+      "imageUrl": "https://www.zms.mn/resource/zms/uploads/2016/12/12-16-9hh.jpg"
+    },
+    {
+      "title": "Амгаланбаатар",
+      "slug": "actor-50",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQpgqwO3UhOpSlb0AK5-4UB1_4Q07NYTjLZ5RHELwigMru3H7Wgpsj-8-A&s=10"
+    },
+    {
+      "title": "Лхагвацэрэн 'Жижгээ'",
+      "slug": "actor-51",
+      "imageUrl": "https://www.yolo.mn/img/content_image/cover_image/190820181534648952_18127989.jpeg"
+    },
+    {
+      "title": "Долгор",
+      "slug": "actor-52",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSTmyz_491luA92D0yQIjU_o3KhAgzaTqgE2vsx_2XMENP7jI86WcHmTaYh&s=10"
+    },
+    {
+      "title": "Өлзийхүү",
+      "slug": "actor-53",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtz_o8V2Mpa7tDThkXGpPDtZa6iDFYcjyDhZ3F1ptBP-SPjbkANZL0ulMn&s=10"
+    },
+    {
+      "title": "Одончимэг",
+      "slug": "actor-54",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/66c2e99001577497955130.jpg"
+    },
+    {
+      "title": "Дөлгөөн",
+      "slug": "actor-55",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREt8KDKStjFSA3czJKSJfgXlIUM1vhb8qb0ThLzV5m0WIbLbEOtCtau5g&s=10"
+    },
+    {
+      "title": "Номин",
+      "slug": "actor-56",
+      "imageUrl": "https://review.somedia.mn/wp-content/uploads/2024/07/%D0%BD%D0%BE%D0%BC%D0%B8%D0%BD-4.jpg"
+    },
+    {
+      "title": "Оюундарь",
+      "slug": "actor-57",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTcO4tLyxtY9jT4MokBKW49ZCOPSLZt8fnxeP0f76yHVQ&s=10"
+    },
+    {
+      "title": "Ундармаа",
+      "slug": "actor-58",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLjYo5jTdff-aEzbl4bi0uMssIz_eLsM3sx6Q3ISGHVENJ5f5jY8XSGBW_&s=10"
+    },
+    {
+      "title": "Ариунцэцэг",
+      "slug": "actor-59",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJnjnFQQZaX4IoP3n8I0jlP2rKun3WOBUcGNLGT6nkYZh5TWMtfTqPTk1L&s=10"
+    },
+    {
+      "title": "Сарантуяа",
+      "slug": "actor-60",
+      "imageUrl": "https://news.zindaa.mn/images/gallery/201306/922dc73c58c58a74original.jpg"
+    },
+    {
+      "title": "Мөнхсоёл",
+      "slug": "actor-61",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRNSy_dgtBM6sa-4q08Jn5YFGgMKtwBf7-aJM3J77O6giHl2x_-WXKPIJCW&s=10"
+    },
+    {
+      "title": "Энэрэл",
+      "slug": "actor-62",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaIZzyqHJkl3P_s2llfArsL13iNMbL7g9t1M1ivFmpxwuJXmV1Um7QK2Z2&s=10"
+    },
+    {
+      "title": "Отгонтунгалаг",
+      "slug": "actor-63",
+      "imageUrl": "https://review.somedia.mn/wp-content/uploads/2024/06/311690385_107370578826911_1615675726902733449_n.jpg"
+    },
+    {
+      "title": "Ганцэцэг",
+      "slug": "actor-64",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRi6KC1JB3qwSc-8WVkCIHztubyUT5aw7wy3Ze3vrDc5g0iLX1usl4GghcD&s=10"
+    },
+    {
+      "title": "Ганчимэг",
+      "slug": "actor-65",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR9Bh1ivqXe9v2M1BrKZ_gTc4Rw2f-Pzt7-WWfims4p328axnd9F-7H50sH&s=10"
+    },
+    {
+      "title": "Т.Хулан",
+      "slug": "actor-66",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/66a336a43bfae970807529.jpg"
+    },
+    {
+      "title": "Б.Хулан",
+      "slug": "actor-67",
+      "imageUrl": "https://ergelt.mn/upload/images/orig/2024/10/10/04bb9b8e589864ed0c801f0e4df0eec5.jpeg"
+    },
+    {
+      "title": "Уранчимэг",
+      "slug": "actor-68",
+      "imageUrl": "https://www.dorgio.mn/uploads/2016/01/d14374f340446136400291092612bfcc.jpg"
+    },
+    {
+      "title": "Золоо",
+      "slug": "actor-69",
+      "imageUrl": "https://www.dorgio.mn/uploads/2016/05/461bc5ca7bb15691b563864764143407.jpg"
+    },
+    {
+      "title": "Оюунтуул",
+      "slug": "actor-70",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4oNvRw6wUFSBjokF5ztWMVo2YNbQqnyqv6h20jQ2Y48XDyD4A4nBfvZLA&s=10"
+    },
+    {
+      "title": "Алдармаа",
+      "slug": "actor-71",
+      "imageUrl": "https://www.zindaa.mn/images/news/origin/19/118850776_784640479037263_8145773227718848788_n.jpg"
+    },
+    {
+      "title": "Жими 'Favway'",
+      "slug": "actor-72",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRV6n77VaJV70yXP6t_spd-nqhsbn-x6e4xWI5Jpco74ZchoHfVi8OEO5BK&s=10"
+    },
+    {
+      "title": "Томоо 'Favway'",
+      "slug": "actor-73",
+      "imageUrl": "https://ubn.mn/storage/favway/361208365_3422532124677557_3172829030381996794_n.png"
+    },
+    {
+      "title": "Ундрал 'Favway'",
+      "slug": "actor-74",
+      "imageUrl": "https://ergelt.mn/upload/images/275311905_1099178104273073_6354390523965854819_n.jpg"
+    },
+    {
+      "title": "Жижгээ 'Favway'",
+      "slug": "actor-75",
+      "imageUrl": "https://ubn.mn/storage/favway/362241021_922769852154176_3902961863826593582_n.png"
+    },
+    {
+      "title": "Баярмаа",
+      "slug": "actor-76",
+      "imageUrl": "https://mnb.mn/uploads/202109/news/thumb/251bbc2b2208cd6bce083c47c843e928_x3.jpg"
+    },
+    {
+      "title": "Намуун",
+      "slug": "actor-77",
+      "imageUrl": "https://dorgio.mn//uploads/2023/10/7becd98f7270bafa531a3c3de0d85137.jpg"
+    },
+    {
+      "title": "Бадамжав 'Jerry'",
+      "slug": "actor-78",
+      "imageUrl": "https://ubn.mn/storage/jerry/104.png"
+    },
+    {
+      "title": "Отгонтуяа",
+      "slug": "actor-79",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSAxamzj2aoDuSpsEpYFWB_DKLCaLnv3iSgOLxoIe77HY8dipm0X3iqHUaG&s=10"
+    },
+    {
+      "title": "Нямка",
+      "slug": "actor-80",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS4-vFdsJiWq7ezCViGHvfxt8gaIHqSC8MJgzQmQOaiGqL_Q0OE9XAxP1I&s=10"
+    },
+    {
+      "title": "Сэлэнгэ",
+      "slug": "actor-81",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQwhdfdhBD9GqzY4WdDPaweS_t2FWb_4W2ZaNfWi0sReJgpsQ1dZGLP7ARz&s=10"
+    },
+    {
+      "title": "Шүүдэрхэн",
+      "slug": "actor-82",
+      "imageUrl": "https://www.tac.mn/wp-content/uploads/2021/02/A909BD87-5ACE-41F3-995F-056CB79BE5F3.jpeg"
+    },
+    {
+      "title": "Пүрэвсүрэн",
+      "slug": "actor-83",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSlBjbfQ7BDLoPQXBjyJIiKmhAdj3pe_f-fY-pYESJh7DD0-a0FKtrB0VKF&s=10"
+    },
+    {
+      "title": "Нарансолонго",
+      "slug": "actor-84",
+      "imageUrl": "https://cms.kinosan.mn/uploads/person/66d7d927d2cb7671005571.jpg"
+    },
+    {
+      "title": "Навчаа",
+      "slug": "actor-85",
+      "imageUrl": "https://www.dorgio.mn/uploads/2015/08/3518c08f1ce4f53ad3d9e9ed9abbbf2f.jpg"
     }
   ]
 }

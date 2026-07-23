@@ -1,0 +1,27 @@
+{
+  "artist": { "name": "Ginjin", "slug": "ginjin", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "No Selgee", "slug": "no-selgee", "youtubeUrl": "https://youtu.be/YukzSmskh_U" },
+    { "title": "Ene Much", "slug": "ene-much", "youtubeUrl": "https://youtu.be/nPPPfsJv7HA" },
+    { "title": "Rich Mongol", "slug": "rich-mongol", "youtubeUrl": "https://youtu.be/eUAlMh2jVCs" },
+    { "title": "Pon Pon", "slug": "pon-pon", "youtubeUrl": "https://youtu.be/Y3tNvRfUatk" },
+    { "title": "Shorty Namaig", "slug": "shorty-namaig", "youtubeUrl": "https://youtu.be/fk60GEdSM9g" },
+    { "title": "Oh Na Na", "slug": "oh-na-na", "youtubeUrl": "https://youtu.be/P3vtJS3TI9Y" },
+    { "title": "ATM", "slug": "atm", "youtubeUrl": "https://youtu.be/kY0XWCNBjLg" },
+    { "title": "Hot Boy", "slug": "hot-boy", "youtubeUrl": "https://youtu.be/nW-f7aVPVbI" },
+    { "title": "Promise", "slug": "promise", "youtubeUrl": "https://youtu.be/COkhi-Ae-sA" },
+    { "title": "Doby Boy Fresh", "slug": "doby-boy-fresh", "youtubeUrl": "https://youtu.be/9qhBQ_uJHmE" },
+    { "title": "Yer n Demii", "slug": "yer-n-demii", "youtubeUrl": "https://youtu.be/vI8wFejrPUE" },
+    { "title": "Boroo", "slug": "boroo", "youtubeUrl": "https://youtu.be/CwmX5Hzkd9Q" },
+    { "title": "200 Huvi", "slug": "200-huvi", "youtubeUrl": "https://youtu.be/VOBTsdXE3-g" },
+    { "title": "In Da Huree", "slug": "in-da-huree", "youtubeUrl": "https://youtu.be/wjSFmWxh6WY" },
+    { "title": "ZUUNII ZUGAA", "slug": "zuunii-zugaa", "youtubeUrl": "https://youtu.be/pOjyToZ3R9w" },
+    { "title": "Huvi Zaya", "slug": "huvi-zaya", "youtubeUrl": "https://youtu.be/nuvKqRtNXIo" },
+    { "title": "Sunuunu", "slug": "sunuunu", "youtubeUrl": "https://youtu.be/cVtcEj_w9Uo" },
+    { "title": "How to Flex", "slug": "how-to-flex", "youtubeUrl": "https://youtu.be/G3UjfzsMK88" },
+    { "title": "Suvgaa Soli", "slug": "suvgaa-soli", "youtubeUrl": "https://youtu.be/no_-Tr7FNDI" },
+    { "title": "Arasso", "slug": "arasso", "youtubeUrl": "https://youtu.be/Q_m6PDcOhwM" },
+    { "title": "El Yama", "slug": "el-yama", "youtubeUrl": "https://youtu.be/lfdJmS808nw" }
+  ]
+}

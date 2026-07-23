@@ -1,0 +1,25 @@
+{
+  "artist": { "name": "Gangbay", "slug": "gangbay", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "Gangan Tsagaan", "slug": "gangan-tsagaan", "youtubeUrl": "https://youtu.be/axdOKdaepyE" },
+    { "title": "Tergel Sar", "slug": "tergel-sar", "youtubeUrl": "https://youtu.be/m7bU0kIYaOc" },
+    { "title": "Haranga", "slug": "haranga", "youtubeUrl": "https://youtu.be/m5-A9QYUheI" },
+    { "title": "DANDAA HAIRTAI", "slug": "dandaa-hairtai", "youtubeUrl": "https://youtu.be/rNpK38jjUYI" },
+    { "title": "Tail", "slug": "tail", "youtubeUrl": "https://youtu.be/RdvomV6Q_wk" },
+    { "title": "Togloom Bish", "slug": "togloom-bish", "youtubeUrl": "https://youtu.be/t8RFIrBoGiw" },
+    { "title": "Baby Shark", "slug": "baby-shark", "youtubeUrl": "https://youtu.be/98VhftFVJLw" },
+    { "title": "GINJ", "slug": "ginj", "youtubeUrl": "https://youtu.be/YDKrom4v3Wo" },
+    { "title": "Charisma", "slug": "charisma", "youtubeUrl": "https://youtu.be/aAp1atdnwhQ" },
+    { "title": "Mogjookhon Khuu", "slug": "mogjookhon-khuu", "youtubeUrl": "https://youtu.be/8x5-gB4CE6Q" },
+    { "title": "МОЯ", "slug": "moya", "youtubeUrl": "https://youtu.be/BMqBN4z56Eo" },
+    { "title": "Close Up", "slug": "close-up", "youtubeUrl": "https://youtu.be/J9VP5wQCyDU" },
+    { "title": "Seen", "slug": "seen", "youtubeUrl": "https://youtu.be/PnQd4TyWlhc" },
+    { "title": "Virtual Love", "slug": "virtual-love", "youtubeUrl": "https://youtu.be/ZUZV4lnqxDE" },
+    { "title": "Shnax", "slug": "shnax", "youtubeUrl": "https://youtu.be/6yz-rb53L-4" },
+    { "title": "HARI", "slug": "hari", "youtubeUrl": "https://youtu.be/VnEIY7LBKU4" },
+    { "title": "Red Hoodie", "slug": "red-hoodie", "youtubeUrl": "https://youtu.be/TDaeA0G6qTw" },
+    { "title": "MAMACITA", "slug": "mamacita", "youtubeUrl": "https://youtu.be/WJRY8z5eJbU" },
+    { "title": "Dutuu", "slug": "dutuu", "youtubeUrl": "https://youtu.be/U_w0MF1gUgM" }
+  ]
+}

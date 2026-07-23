@@ -1,0 +1,13 @@
+{
+  "artist": { "name": "Galtmah", "slug": "galtmah", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "Namuuhan", "slug": "namuuhan", "youtubeUrl": "https://youtu.be/J67sRlUJAMc" },
+    { "title": "Zurkhen Helbert Boroo", "slug": "zurkhen-helbert-boroo", "youtubeUrl": "https://youtu.be/ingeg1M_RUM" },
+    { "title": "15 HEADED", "slug": "15-headed", "youtubeUrl": "https://youtu.be/DXAV9mE2oyQ" },
+    { "title": "LUPINO", "slug": "lupino", "youtubeUrl": "https://youtu.be/1lmNycbEDxk" },
+    { "title": "LOSERS", "slug": "losers", "youtubeUrl": "https://youtu.be/am-0oaSoGVY" },
+    { "title": "NUURIIN UNEG", "slug": "nuuriin-uneg", "youtubeUrl": "https://youtu.be/qjFUam8QvF8" },
+    { "title": "BOLJMOR", "slug": "boljmor", "youtubeUrl": "https://youtu.be/-REHWC1MXos" }
+  ]
+}

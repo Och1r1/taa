@@ -1,0 +1,20 @@
+{
+  "artist": { "name": "290", "slug": "290", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "be my summer", "slug": "be-my-summer", "youtubeUrl": "https://youtu.be/waDMLxzfzs0" },
+    { "title": "3 SET", "slug": "3-set", "youtubeUrl": "https://youtu.be/v54PM_SYji4" },
+    { "title": "Hodolguur", "slug": "hodolguur", "youtubeUrl": "https://youtu.be/sX11TZtTuGE" },
+    { "title": "Goodnight City", "slug": "goodnight-city", "youtubeUrl": "https://youtu.be/uXj46TM8d6Y" },
+    { "title": "Chihriin baglaa", "slug": "chihriin-baglaa", "youtubeUrl": "https://youtu.be/f0GLFt_uPog" },
+    { "title": "Ulaanbaatar Gunigtai", "slug": "ulaanbaatar-gunigtai", "youtubeUrl": "https://youtu.be/xunQnGibIuA" },
+    { "title": "Bingo", "slug": "bingo", "youtubeUrl": "https://youtu.be/JvNMW1Tqg8E" },
+    { "title": "Tumaranuma", "slug": "tumaranuma", "youtubeUrl": "https://youtu.be/853ipDCnXa0" },
+    { "title": "road", "slug": "road", "youtubeUrl": "https://youtu.be/WL3jw7pptPc" },
+    { "title": "Agsam Tavina", "slug": "agsam-tavina", "youtubeUrl": "https://youtu.be/2VMhFQylrpw" },
+    { "title": "Hair Haaya", "slug": "hair-haaya", "youtubeUrl": "https://youtu.be/FlceS1P3L2k" },
+    { "title": "Chatsarganan Ayangatai Tal", "slug": "chatsarganan-ayangatai-tal", "youtubeUrl": "https://youtu.be/k9Xaa0cHzp4" },
+    { "title": "Huuheldein Kino", "slug": "huuheldein-kino", "youtubeUrl": "https://youtu.be/TLatHUqhTnU" },
+    { "title": "back in the business", "slug": "back-in-the-business", "youtubeUrl": "https://youtu.be/bk2v452PUi8" }
+  ]
+}
