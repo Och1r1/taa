@@ -496,13 +496,21 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     if (!session.isHost) return
     if (!room || room.status !== 'playing' || !round || round.status !== 'active') return
 
-    // The host is the stage controller, not an answer pad. Counting the host
-    // here can make a room advance based on stale/host answers.
+    // The host is the stage controller, not an answer pad. Reveal as soon as
+    // every active guest has answered; otherwise the server deadline is the
+    // fallback so an inactive player cannot block the whole room.
+    const answeringPlayers = players.filter(
+      (player) => !player.isHost && player.role !== 'spectator',
+    )
+    const allAnswered =
+      answeringPlayers.length > 0 &&
+      answeringPlayers.every((player) =>
+        answers.some(
+          (answer) => answer.playerId === player.id && answer.roundIndex === round.roundIndex,
+        ),
+      )
     const timedOut = timeLeft <= 0 && Date.now() >= new Date(round.endsAt).getTime()
-    // Keep each round open until its server deadline. Advancing immediately
-    // after the final answer makes the visible counter look broken and gives
-    // players no time to confirm their selection.
-    if (!timedOut) return
+    if (!allAnswered && !timedOut) return
     if (revealingRef.current) return
     revealingRef.current = true
 
@@ -516,6 +524,8 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
     session.roomId,
     room,
     round,
+    players,
+    answers,
     timeLeft,
   ])
 
@@ -561,7 +571,10 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
   useEffect(() => {
     if (!session.isHost) return
     if (!room || room.status !== 'countdown' || !room.countdownEndsAt) return
-    if (countdownLeft > 0.05) return
+    // The visible counter rounds fractional seconds up. Publishing even a few
+    // milliseconds early can therefore replace a displayed “1” with a round.
+    // Only transition once the shared server deadline has actually passed.
+    if (Date.now() < new Date(room.countdownEndsAt).getTime()) return
     if (publishedCountdownRef.current === room.countdownEndsAt) return
     publishedCountdownRef.current = room.countdownEndsAt
 
