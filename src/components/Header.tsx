@@ -1,6 +1,6 @@
 import { EqualizerBars } from './EqualizerBars'
 
-export type NavView = 'home' | 'leaderboard'
+export type NavView = 'home' | 'leaderboard' | 'account'
 
 interface Props {
   active: NavView
@@ -10,6 +10,7 @@ interface Props {
 const LINKS: { key: NavView; label: string }[] = [
   { key: 'home', label: 'Нүүр' },
   { key: 'leaderboard', label: 'Тэргүүлэгчид' },
+  { key: 'account', label: 'Профайл' },
 ]
 
 /** Top navigation bar shown on the Home and Leaderboard pages. */

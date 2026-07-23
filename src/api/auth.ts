@@ -107,6 +107,62 @@ export async function sendMagicLink(email: string): Promise<void> {
   if (error) throw new Error(`И-мэйл илгээж чадсангүй: ${error.message}`)
 }
 
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+): Promise<{ needsConfirmation: boolean }> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase тохируулагдаагүй байна.')
+  }
+  const trimmed = email.trim()
+  if (!trimmed.includes('@')) {
+    throw new Error('И-мэйл хаяг буруу байна')
+  }
+  if (password.length < 6) {
+    throw new Error('Нууц үг дор хаяж 6 тэмдэгт байх ёстой')
+  }
+
+  const { data, error } = await supabase.auth.signUp({ email: trimmed, password })
+  if (error) throw new Error(`Бүртгүүлж чадсангүй: ${error.message}`)
+  return { needsConfirmation: !data.session }
+}
+
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase тохируулагдаагүй байна.')
+  }
+  const trimmed = email.trim()
+  if (!trimmed || !password) {
+    throw new Error('И-мэйл болон нууц үгээ оруулна уу')
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password })
+  if (error) throw new Error(`Нэвтэрч чадсангүй: ${error.message}`)
+}
+
+/** Password-reset email — lands the user back on the app origin with a recovery session. */
+export async function resetPasswordForEmail(email: string): Promise<void> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase тохируулагдаагүй байна.')
+  }
+  const trimmed = email.trim()
+  if (!trimmed.includes('@')) {
+    throw new Error('И-мэйл хаяг буруу байна')
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+    redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+  })
+  if (error) throw new Error(`Сэргээх холбоос илгээж чадсангүй: ${error.message}`)
+}
+
+/** Full sign-out — ends the session entirely, including the anonymous identity. */
+export async function signOut(): Promise<void> {
+  if (!isSupabaseConfigured) return
+  const { error } = await supabase.auth.signOut()
+  if (error) throw new Error(`Гарч чадсангүй: ${error.message}`)
+}
+
 export async function getAuthEmail(): Promise<string | null> {
   if (!isSupabaseConfigured) return null
   const { data } = await supabase.auth.getSession()

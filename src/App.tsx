@@ -6,6 +6,7 @@ import { HomeScreen } from './screens/HomeScreen'
 import { GameScreen } from './screens/GameScreen'
 import { ResultsScreen } from './screens/ResultsScreen'
 import { LeaderboardScreen } from './screens/LeaderboardScreen'
+import { AccountScreen } from './screens/AccountScreen'
 import { LobbyScreen } from './screens/LobbyScreen'
 import { MultiGameScreen } from './screens/MultiGameScreen'
 import { Header, type NavView } from './components/Header'
@@ -114,10 +115,13 @@ export default function App() {
         <Header active={view} onNavigate={navigate} />
         {view === 'leaderboard' ? (
           <LeaderboardScreen />
+        ) : view === 'account' ? (
+          <AccountScreen />
         ) : (
           <HomeScreen
             onStart={(slug, category, config) => void engine.start(slug, category, config)}
             onEnterLobby={(session) => setMultiSession(session)}
+            onOpenAccount={() => navigate('account')}
           />
         )}
       </div>

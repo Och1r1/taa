@@ -9,7 +9,7 @@ import { SelectableCard } from '../components/SelectableCard'
 import { StatusMessage } from '../components/StatusMessage'
 import { fetchCategories } from '../api/categories'
 import { fetchArtists } from '../api/songs'
-import { getAuthEmail, resolveDisplayName, sendMagicLink, updateDisplayName } from '../api/auth'
+import { resolveDisplayName, updateDisplayName } from '../api/auth'
 import { createRoom, joinRoom, listPublicLobbies, peekRoomByInvite, peekRoomByPin } from '../api/rooms'
 import {
   clearJoinPinFromUrl,
@@ -31,6 +31,7 @@ import type {
 interface Props {
   onStart: (slug: string, category: Category, config: GameConfig) => void
   onEnterLobby: (session: MultiSession) => void
+  onOpenAccount: () => void
 }
 
 const MIN_SONGS = 4 // need at least 4 items to fill the answer options
@@ -45,7 +46,7 @@ function prettySlug(slug: string): string {
   return slug.charAt(0).toUpperCase() + slug.slice(1)
 }
 
-export function HomeScreen({ onStart, onEnterLobby }: Props) {
+export function HomeScreen({ onStart, onEnterLobby, onOpenAccount }: Props) {
   const [categories, setCategories] = useState<LeaderboardCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [loadingCategories, setLoadingCategories] = useState(true)
@@ -73,12 +74,6 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
   const [rounds, setRounds] = useState(5)
   const [timePerRound, setTimePerRound] = useState(15)
   const [nickname, setNickname] = useState('')
-  const [profileSaving, setProfileSaving] = useState(false)
-  const [profileMessage, setProfileMessage] = useState<string | null>(null)
-  const [magicEmail, setMagicEmail] = useState('')
-  const [magicBusy, setMagicBusy] = useState(false)
-  const [magicMessage, setMagicMessage] = useState<string | null>(null)
-  const [signedInEmail, setSignedInEmail] = useState<string | null>(null)
   const [joinPin, setJoinPin] = useState(() => readJoinParamsFromUrl().pin ?? '')
   const [joinInvite, setJoinInvite] = useState(() => readJoinParamsFromUrl().invite ?? '')
   const [roomVisibility, setRoomVisibility] = useState<RoomVisibility>('public')
@@ -95,9 +90,6 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     let cancelled = false
     void resolveDisplayName().then((name) => {
       if (!cancelled && name) setNickname(name)
-    })
-    void getAuthEmail().then((email) => {
-      if (!cancelled) setSignedInEmail(email)
     })
     return () => {
       cancelled = true
@@ -236,34 +228,6 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
     }
   }
 
-  async function handleSaveProfile() {
-    if (!hasNickname || profileSaving) return
-    setProfileSaving(true)
-    setProfileMessage(null)
-    try {
-      await updateDisplayName(nickname)
-      setProfileMessage('Нэр хадгалагдлаа')
-    } catch (error) {
-      setProfileMessage(error instanceof Error ? error.message : 'Нэр хадгалж чадсангүй')
-    } finally {
-      setProfileSaving(false)
-    }
-  }
-
-  async function handleMagicLink() {
-    if (magicBusy) return
-    setMagicBusy(true)
-    setMagicMessage(null)
-    try {
-      await sendMagicLink(magicEmail)
-      setMagicMessage('И-мэйл илгээлээ — холбоосоор нэвтэрнэ үү.')
-    } catch (error) {
-      setMagicMessage(error instanceof Error ? error.message : 'И-мэйл илгээж чадсангүй')
-    } finally {
-      setMagicBusy(false)
-    }
-  }
-
   async function handleCreateRoom() {
     if (!selectedArtist || !selectedCategory || !canStart || !hasNickname) return
     setMultiBusy(true)
@@ -327,77 +291,15 @@ export function HomeScreen({ onStart, onEnterLobby }: Props) {
         </p>
       </div>
 
-      <details className="mb-8 max-w-md rounded-2xl border border-border bg-surface/60 open:bg-surface">
-        <summary className="cursor-pointer select-none px-5 py-4 text-sm font-bold text-muted hover:text-ink">
-          Профайл — {hasNickname ? nickname : 'нэрээ тохируулах'}
-        </summary>
-        <div className="px-5 pb-5">
-          <NicknameInput
-            id="display-name"
-            label="Таны нэр"
-            value={nickname}
-            onChange={(value) => {
-              setNickname(value)
-              setProfileMessage(null)
-            }}
-            background="surface"
-            action={{
-              label: 'Хадгалах',
-              busy: profileSaving,
-              disabled: !hasNickname || profileSaving,
-              onClick: () => void handleSaveProfile(),
-            }}
-            message={
-              profileMessage
-                ? { text: profileMessage, tone: profileMessage.includes('хадгалагдлаа') ? 'success' : 'error' }
-                : null
-            }
-          />
-          <div className="mt-4 border-t border-border pt-4">
-            {signedInEmail ? (
-              <p className="text-sm text-muted">
-                Нэвтэрсэн: <span className="font-bold text-ink">{signedInEmail}</span>
-              </p>
-            ) : (
-              <>
-                <label className="block text-sm font-bold text-muted" htmlFor="magic-email">
-                  И-мэйлээр нэвтрэх (заавал биш)
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      id="magic-email"
-                      type="email"
-                      value={magicEmail}
-                      onChange={(event) => {
-                        setMagicEmail(event.target.value)
-                        setMagicMessage(null)
-                      }}
-                      placeholder="you@example.com"
-                      className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-ink outline-none focus:border-cyan/60"
-                    />
-                    <Button
-                      variant="ghost"
-                      className="shrink-0 px-4 py-3 text-sm"
-                      disabled={magicBusy || !magicEmail.includes('@')}
-                      onClick={() => void handleMagicLink()}
-                    >
-                      {magicBusy ? '…' : 'Илгээх'}
-                    </Button>
-                  </div>
-                </label>
-                {magicMessage && (
-                  <p
-                    className={`mt-2 text-sm ${
-                      magicMessage.includes('илгээлээ') ? 'text-cyan' : 'text-pink'
-                    }`}
-                  >
-                    {magicMessage}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </details>
+      <button
+        onClick={onOpenAccount}
+        className="mb-8 flex w-full max-w-md items-center justify-between rounded-2xl border border-border bg-surface/60 px-5 py-4 text-left text-sm text-muted hover:text-ink"
+      >
+        <span>
+          Тоглож байна: <span className="font-bold text-ink">{hasNickname ? nickname : 'Нэргүй'}</span>
+        </span>
+        <span className="text-xs uppercase tracking-widest text-muted-2">Профайл →</span>
+      </button>
 
       {/* Mode toggle */}
       <PillToggle
