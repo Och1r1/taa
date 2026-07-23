@@ -50,6 +50,7 @@ interface PlayerRow {
   correct_count: number
   joined_at: string
   last_seen: string
+  team?: number | null
 }
 
 interface RoundRow {
@@ -145,6 +146,7 @@ function toPlayer(row: PlayerRow): RoomPlayer {
     correctCount: row.correct_count,
     joinedAt: row.joined_at,
     lastSeen: row.last_seen,
+    team: row.team === 1 || row.team === 2 ? row.team : null,
   }
 }
 
@@ -543,12 +545,12 @@ export async function fetchRoom(roomId: string): Promise<GameRoom | null> {
 export async function fetchRoomPlayers(roomId: string): Promise<RoomPlayer[]> {
   const { data, error } = await supabase
     .from('room_players')
-    .select('id, room_id, nickname, is_host, role, score, correct_count, joined_at, last_seen')
+    .select('id, room_id, nickname, is_host, role, score, correct_count, joined_at, last_seen, team')
     .eq('room_id', roomId)
     .order('joined_at', { ascending: true })
 
   if (error) {
-    if (error.message.includes('role')) {
+    if (error.message.includes('role') || error.message.includes('team')) {
       const fallback = await supabase
         .from('room_players')
         .select('id, room_id, nickname, is_host, score, correct_count, joined_at, last_seen')
@@ -766,6 +768,16 @@ export async function kickRoomPlayer(roomId: string, playerId: string): Promise<
     p_player_id: playerId,
   })
   if (error) throw new Error(`Тоглогчийг хасч чадсангүй: ${rpcMessage(error)}`)
+}
+
+export async function assignRoomTeam(roomId: string, playerId: string, team: 1 | 2): Promise<void> {
+  await ensureAnonymousUser()
+  const { error } = await supabase.rpc('assign_room_team', {
+    p_room_id: roomId,
+    p_player_id: playerId,
+    p_team: team,
+  })
+  if (error) throw new Error(`Баг оноож чадсангүй: ${rpcMessage(error)}`)
 }
 
 /** Host drops guests whose last_seen is older than idleSeconds. */

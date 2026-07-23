@@ -1,17 +1,17 @@
 import type { AnswerOption, Song } from '../types'
 
 /** Fisher–Yates shuffle. Returns a new array; does not mutate the input. */
-export function shuffle<T>(input: readonly T[]): T[] {
+export function shuffle<T>(input: readonly T[], random: () => number = Math.random): T[] {
   const arr = input.slice()
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = Math.floor(random() * (i + 1))
     ;[arr[i], arr[j]] = [arr[j], arr[i]]
   }
   return arr
 }
 
-export function pickRandom<T>(input: readonly T[]): T {
-  return input[Math.floor(Math.random() * input.length)]
+export function pickRandom<T>(input: readonly T[], random: () => number = Math.random): T {
+  return input[Math.floor(random() * input.length)]
 }
 
 /** Strip case, punctuation and spacing so titles can be compared for similarity. */
@@ -50,9 +50,13 @@ const SIMILARITY_LIMIT = 0.8
  * titles and to avoid being confusingly similar to the answer or to each other
  * (e.g. "Хару" vs "Хару Хару"). Falls back to relaxed picks for small pools.
  */
-export function buildOptions(answer: Song, pool: readonly Song[]): AnswerOption[] {
+export function buildOptions(
+  answer: Song,
+  pool: readonly Song[],
+  random: () => number = Math.random,
+): AnswerOption[] {
   const answerNorm = normalizeTitle(answer.title)
-  const candidates = shuffle(pool.filter((s) => s.id !== answer.id))
+  const candidates = shuffle(pool.filter((s) => s.id !== answer.id), random)
   const usedNorms = new Set<string>([answerNorm])
   const chosen: Song[] = []
 
@@ -84,5 +88,5 @@ export function buildOptions(answer: Song, pool: readonly Song[]): AnswerOption[
     songId: s.id,
     title: s.title,
   }))
-  return shuffle(options)
+  return shuffle(options, random)
 }

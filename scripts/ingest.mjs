@@ -226,6 +226,11 @@ async function main() {
     .single()
   if (aErr || !artistRow) die(`Failed to read pack: ${aErr?.message}`)
   const artistId = artistRow.id
+  const { error: difficultyColumnError } = await supabase.from('songs').select('difficulty').limit(1)
+  const supportsDifficulty = !difficultyColumnError
+  if (!supportsDifficulty) {
+    log('  ℹ️  content-ops.sql is not applied; ingesting without difficulty metadata')
+  }
 
   log(`\n🎬 Ingesting ${songs.length} item(s) for "${artist.name}" (${artist.slug}, ${category})\n`)
 
@@ -295,6 +300,10 @@ async function main() {
       if (sErr) throw new Error(`Storage upload failed: ${sErr.message}`)
 
       // Insert (or update) the DB row. snippet_start = 0 because the file is the clip.
+      const difficulty = Number(song.difficulty ?? defaults.difficulty ?? 2)
+      if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5) {
+        throw new Error('difficulty must be an integer from 1 (easy) to 5 (expert)')
+      }
       const row = {
         artist_id: artistId,
         title: resolvedTitle,
@@ -302,6 +311,7 @@ async function main() {
         media_type: mediaType,
         snippet_start: 0,
         snippet_duration: duration,
+        ...(supportsDifficulty ? { difficulty } : {}),
       }
       if (existing) {
         const { error } = await supabase.from('songs').update(row).eq('id', existing.id)

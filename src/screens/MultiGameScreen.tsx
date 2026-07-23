@@ -4,7 +4,7 @@ import { MediaStage } from '../components/MediaStage'
 import { OptionCard } from '../components/OptionCard'
 import { TimerBar } from '../components/TimerBar'
 import { closeRoom, leaveRoom, respondRematch } from '../api/rooms'
-import { useMultiGame } from '../game/useMultiGame'
+import { useMultiGame, type MultiGameApi } from '../game/useMultiGame'
 import type { MultiSession, RoundOutcome, Song } from '../types'
 import { useEffect, useState } from 'react'
 
@@ -34,6 +34,7 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
   const [rematchDeclined, setRematchDeclined] = useState(false)
   const [rematchError, setRematchError] = useState<string | null>(null)
   const [rematchLeft, setRematchLeft] = useState(0)
+  const [presenterMode, setPresenterMode] = useState(false)
 
   useEffect(() => {
     if (game.room?.status !== 'finished' || game.room.rematchStatus !== 'pending') {
@@ -79,6 +80,30 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
       setRematchError(err instanceof Error ? err.message : 'Хариу илгээж чадсангүй')
     } finally {
       setRematchBusy(false)
+    }
+  }
+
+  function downloadStandings() {
+    const header = 'rank,nickname,score,correct_count,team\n'
+    const rows = game.rankedPlayers.map((player, index) =>
+      `${index + 1},"${player.nickname.replace(/"/g, '""')}",${player.score},${player.correctCount},${player.team ?? ''}`,
+    )
+    const blob = new Blob([header + rows.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `taa-standings-${game.room?.pin ?? 'room'}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function togglePresenterMode() {
+    setPresenterMode((open) => !open)
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.()
+      else await document.exitFullscreen()
+    } catch {
+      /* fullscreen is optional */
     }
   }
 
@@ -209,6 +234,11 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
         </ol>
 
         <div className="mt-8 flex flex-wrap gap-3">
+          {session.isHost && (
+            <Button variant="ghost" onClick={downloadStandings}>
+              ↓ CSV дүн татах
+            </Button>
+          )}
           {session.isHost && !rematchPending && (
             <Button disabled={game.starting} onClick={() => void handleProposeRematch()}>
               {game.starting ? 'Шинэ өрөө нээж байна…' : 'Дахин тоглох'}
@@ -243,6 +273,18 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
   const answeredCount = game.round
     ? game.answers.filter((answer) => answer.roundIndex === game.round!.roundIndex).length
     : 0
+  const teamScores = teamStandings(game.players)
+
+  if (presenterMode && session.isHost) {
+    return (
+      <PresenterGame
+        game={game}
+        mediaItem={mediaItem}
+        revealed={revealed}
+        onExit={() => void togglePresenterMode()}
+      />
+    )
+  }
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
@@ -261,6 +303,15 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
         >
           Гарах
         </button>
+        {session.isHost && (
+          <button
+            type="button"
+            onClick={() => void togglePresenterMode()}
+            className="rounded-lg px-3 py-2 text-sm font-bold text-cyan hover:bg-cyan/10"
+          >
+            ⛶ Танилцуулах
+          </button>
+        )}
         <div className="text-right">
           <div className="text-xs font-bold tracking-widest text-muted-2">
             {isSpectator ? 'ҮЗЭГЧ' : 'ОНОО'}
@@ -280,6 +331,12 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
       {game.error && (
         <p className="mb-4 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
           {game.error}
+        </p>
+      )}
+
+      {game.reconnected && (
+        <p className="mb-4 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-3 text-sm text-cyan">
+          Өрөөний одоогийн төлөвтэй дахин холбогдлоо.
         </p>
       )}
 
@@ -305,6 +362,10 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
                 Хариулсан: {answeredCount}/{answeringPlayers.length}
               </p>
             </div>
+          )}
+
+          {teamScores.length === 2 && (
+            <TeamStandings scores={teamScores} />
           )}
 
           <MediaStage item={mediaItem} revealed={revealed} />
@@ -388,6 +449,83 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
       )}
     </div>
   )
+}
+
+function PresenterGame({
+  game,
+  mediaItem,
+  revealed,
+  onExit,
+}: {
+  game: MultiGameApi
+  mediaItem: Song | null
+  revealed: boolean
+  onExit: () => void
+}) {
+  const room = game.room
+  if (!room) return null
+  const isCountdown = room.status === 'countdown'
+  const teamScores = teamStandings(game.players)
+  return (
+    <div className="min-h-screen bg-base px-8 py-10 text-center sm:px-16">
+      <div className="mx-auto flex max-w-6xl items-center justify-between text-left">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-2">Таа · event mode</p>
+          <p className="mt-1 text-xl font-black">Раунд {room.currentRoundIndex + 1} / {room.rounds}</p>
+        </div>
+        <button onClick={onExit} className="rounded-xl border border-border px-4 py-2 text-sm font-bold text-muted hover:text-ink">
+          Хөтлөгчийн самбар
+        </button>
+      </div>
+      {isCountdown ? (
+        <div className="flex min-h-[70vh] flex-col items-center justify-center">
+          <p className="text-xl font-bold text-muted">Дараагийн раунд</p>
+          <p className="mt-4 text-9xl font-black text-cyan">{Math.max(0, Math.ceil(game.countdownLeft))}</p>
+        </div>
+      ) : !mediaItem ? (
+        <div className="flex min-h-[70vh] items-center justify-center text-xl text-muted">Раунд бэлдэж байна…</div>
+      ) : (
+        <div className="mx-auto mt-10 max-w-4xl">
+          {!revealed && <TimerBar timeLeft={game.timeLeft} total={room.timePerRound} />}
+          <div className="mt-8"><MediaStage item={mediaItem} revealed={revealed} /></div>
+          {revealed ? (
+            <div className="mt-8">
+              <p className="text-3xl font-black text-accent-green">Зөв хариулт: {game.round?.answerTitle}</p>
+              {teamScores.length === 2 && <TeamStandings scores={teamScores} large />}
+              <ol className="mx-auto mt-8 max-w-2xl divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface text-left">
+                {game.rankedPlayers.slice(0, 5).map((player, index) => (
+                  <li key={player.id} className="flex justify-between px-5 py-4 text-xl font-bold">
+                    <span>{index + 1}. {player.nickname}</span><span className="text-cyan">{player.score.toLocaleString()}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : (
+            <p className="mt-6 text-lg font-bold text-muted">Утсаараа хариултаа сонгоно уу</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function teamStandings(players: { team: 1 | 2 | null; score: number; role: string }[]) {
+  const scores = [1, 2].map((team) => ({
+    team,
+    points: players.filter((player) => player.team === team && player.role !== 'spectator').reduce((sum, player) => sum + player.score, 0),
+    members: players.filter((player) => player.team === team && player.role !== 'spectator').length,
+  })).filter((team) => team.members > 0)
+  return scores.length === 2 ? scores : []
+}
+
+function TeamStandings({ scores, large = false }: { scores: ReturnType<typeof teamStandings>; large?: boolean }) {
+  return <div className={`mt-5 grid grid-cols-2 gap-3 ${large ? 'mx-auto max-w-2xl' : ''}`}>
+    {scores.map((entry) => <div key={entry.team} className={`rounded-2xl border p-4 text-center ${entry.team === 1 ? 'border-cyan/40 bg-cyan/10' : 'border-pink/40 bg-pink/10'}`}>
+      <div className="text-xs font-bold uppercase tracking-widest text-muted-2">Баг {entry.team}</div>
+      <div className={`${large ? 'text-4xl' : 'text-2xl'} mt-1 font-black ${entry.team === 1 ? 'text-cyan' : 'text-pink'}`}>{entry.points.toLocaleString()}</div>
+      <div className="text-xs text-muted">{entry.members} тоглогч</div>
+    </div>)}
+  </div>
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

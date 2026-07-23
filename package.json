@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "verify:env": "node --env-file=.env.local scripts/verify-env.mjs",
     "ingest": "node --env-file=.env.local scripts/ingest.mjs",
     "test": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run",
     "test:unit": "vitest run"

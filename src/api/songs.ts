@@ -64,6 +64,7 @@ export async function fetchSongsByArtistSlug(slug: string): Promise<Song[]> {
     .from('songs')
     .select('id, artist_id, title, audio_path, media_type, snippet_start, snippet_duration')
     .eq('artist_id', artist.id)
+    .order('id')
 
   if (error) {
     throw new Error(`Дуунуудыг татаж чадсангүй: ${error.message}`)

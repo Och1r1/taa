@@ -14,6 +14,8 @@ import {
   signUpWithPassword,
   updateDisplayName,
 } from '../api/auth'
+import { loadProgress, WEEKLY_GOAL_GAMES } from '../lib/progression'
+import { syncProgress } from '../api/progression'
 
 export function AccountScreen() {
   const [nickname, setNickname] = useState('')
@@ -35,6 +37,8 @@ export function AccountScreen() {
   const [authMessage, setAuthMessage] = useState<string | null>(null)
   const [resetBusy, setResetBusy] = useState(false)
   const [resetMessage, setResetMessage] = useState<string | null>(null)
+  const [progress, setProgress] = useState(loadProgress)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
   const hasNickname = nickname.trim().length >= 2
 
@@ -42,10 +46,21 @@ export function AccountScreen() {
     const [name, currentEmail] = await Promise.all([resolveDisplayName(), getAuthEmail()])
     setNickname(name)
     setAuthEmail(currentEmail)
+    if (currentEmail) {
+      try {
+        setProgress(await syncProgress())
+        setSyncMessage('Ахиц таны бүртгэлтэй синк хийгдлээ.')
+      } catch {
+        setSyncMessage('Ахиц одоогоор энэ төхөөрөмж дээр хадгалагдаж байна.')
+      }
+    }
   }
 
   useEffect(() => {
     void loadState()
+    const refreshProgress = () => setProgress(loadProgress())
+    window.addEventListener('focus', refreshProgress)
+    return () => window.removeEventListener('focus', refreshProgress)
   }, [])
 
   async function handleSaveProfile() {
@@ -127,6 +142,70 @@ export function AccountScreen() {
   return (
     <div className="mx-auto w-full max-w-2xl px-6 pb-16 pt-10">
       <h1 className="mb-8 text-3xl font-extrabold">Профайл</h1>
+
+      <section className="mb-8 grid max-w-md grid-cols-3 gap-3" aria-label="Тоглогчийн ахиц">
+        <div className="rounded-2xl border border-cyan/25 bg-cyan/10 p-4">
+          <div className="text-xs font-bold text-muted-2">ТҮВШИН</div>
+          <div className="mt-1 text-2xl font-black text-cyan">{progress.level}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <div className="text-xs font-bold text-muted-2">XP</div>
+          <div className="mt-1 text-2xl font-black">{progress.xp}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <div className="text-xs font-bold text-muted-2">ЦУВРАЛ</div>
+          <div className="mt-1 text-2xl font-black">🔥 {progress.dailyStreak}</div>
+        </div>
+        <p className="col-span-full text-sm text-muted">{progress.gamesPlayed} тоглоом тоглосон</p>
+        {syncMessage && <p className="col-span-full text-xs text-muted">{syncMessage}</p>}
+      </section>
+
+      <section className="mb-8 max-w-md rounded-2xl border border-border bg-surface p-5">
+        <div className="flex items-center justify-between gap-3">
+          <SectionLabel className="mb-0">Энэ долоо хоногийн зорилго</SectionLabel>
+          <span className="text-sm font-bold text-cyan">{Math.min(progress.weeklyGames, WEEKLY_GOAL_GAMES)}/{WEEKLY_GOAL_GAMES}</span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-raised">
+          <div
+            className="h-full rounded-full bg-cyan transition-[width]"
+            style={{ width: `${Math.min(100, (progress.weeklyGames / WEEKLY_GOAL_GAMES) * 100)}%` }}
+          />
+        </div>
+        <p className="mt-3 text-sm text-muted">Энэ долоо хоногт {WEEKLY_GOAL_GAMES} тоглоом дуусгаарай.</p>
+      </section>
+
+      {progress.achievements.length > 0 && (
+        <section className="mb-8 max-w-md">
+          <SectionLabel className="mb-3">Амжилтууд</SectionLabel>
+          <div className="flex flex-wrap gap-2">
+            {progress.achievements.map((achievement) => (
+              <span key={achievement} className="rounded-full border border-amber/40 bg-amber/10 px-3 py-1.5 text-sm font-bold text-amber">
+                {achievement === 'first-game'
+                  ? '🎮 Анхны тоглоом'
+                  : achievement === 'daily-streak-3'
+                    ? '🔥 3 өдрийн цуврал'
+                    : achievement === 'perfect-game'
+                      ? '⭐ Төгс тоглоом'
+                      : `🏆 ${achievement.replace('category-master:', '')} мастер`}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {Object.keys(progress.categoryMastery).length > 0 && (
+        <section className="mb-8 max-w-md">
+          <SectionLabel className="mb-3">Ангиллын эзэмшил</SectionLabel>
+          <div className="space-y-2">
+            {Object.entries(progress.categoryMastery).map(([category, mastery]) => (
+              <div key={category} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+                <div className="flex justify-between gap-3 font-bold"><span>{category}</span><span className="text-cyan">{mastery.games} тоглоом</span></div>
+                <div className="mt-1 text-muted">{mastery.correct}/{mastery.rounds} зөв</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mb-8 max-w-md">
         <SectionLabel className="mb-2">Нэр</SectionLabel>

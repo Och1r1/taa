@@ -69,9 +69,9 @@ export type ScoreModeFilter = 'solo' | 'multi'
 /** One ordered page of saved category scores; optional solo/multi filter. */
 export async function fetchTopScoresForCategory(
   category: Category,
-  options: { offset?: number; pageSize?: number; mode?: ScoreModeFilter } = {},
+  options: { offset?: number; pageSize?: number; mode?: ScoreModeFilter; since?: string } = {},
 ): Promise<ScorePage> {
-  const { offset = 0, pageSize = 50, mode } = options
+  const { offset = 0, pageSize = 50, mode, since } = options
   let query = supabase
     .from('scores')
     .select(SCORE_COLUMNS)
@@ -83,6 +83,7 @@ export async function fetchTopScoresForCategory(
     // Legacy rows with null mode count as solo.
     query = query.or('mode.eq.solo,mode.is.null')
   }
+  if (since) query = query.gte('created_at', since)
 
   const { data, error } = await query
     .order('points', { ascending: false })

@@ -1,24 +1,29 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { clearMultiSession, fetchRoom, loadMultiSession } from './api/rooms'
 import { useGameEngine } from './game/useGameEngine'
 import { useRoomLobby } from './game/useRoomLobby'
-import { HomeScreen } from './screens/HomeScreen'
 import { GameScreen } from './screens/GameScreen'
 import { ResultsScreen } from './screens/ResultsScreen'
-import { LeaderboardScreen } from './screens/LeaderboardScreen'
-import { AccountScreen } from './screens/AccountScreen'
-import { LobbyScreen } from './screens/LobbyScreen'
-import { MultiGameScreen } from './screens/MultiGameScreen'
 import { Header, type NavView } from './components/Header'
 import { Button } from './components/Button'
 import { readJoinParamsFromUrl } from './lib/joinUrl'
+import { flushAnalyticsEvents } from './api/analytics'
+import { isSupabaseConfigured } from './lib/supabase'
 import type { MultiSession } from './types'
+
+const HomeScreen = lazy(() => import('./screens/HomeScreen').then((m) => ({ default: m.HomeScreen })))
+const LeaderboardScreen = lazy(() => import('./screens/LeaderboardScreen').then((m) => ({ default: m.LeaderboardScreen })))
+const AccountScreen = lazy(() => import('./screens/AccountScreen').then((m) => ({ default: m.AccountScreen })))
+const LobbyScreen = lazy(() => import('./screens/LobbyScreen').then((m) => ({ default: m.LobbyScreen })))
+const MultiGameScreen = lazy(() => import('./screens/MultiGameScreen').then((m) => ({ default: m.MultiGameScreen })))
 
 function initialNavView(): NavView {
   const join = readJoinParamsFromUrl()
   // Join deep links always open home (Хамтдаа), even if ?category= is also present.
   if (join.pin || join.invite || /^\/join(\/|$)/i.test(window.location.pathname)) return 'home'
-  return new URLSearchParams(window.location.search).has('category') ? 'leaderboard' : 'home'
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('daily') === '1') return 'home'
+  return params.has('category') ? 'leaderboard' : 'home'
 }
 
 export default function App() {
@@ -52,6 +57,16 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    const flush = () => void flushAnalyticsEvents().catch(() => {
+      // The optional analytics migration may not be deployed yet; retain events locally.
+    })
+    flush()
+    window.addEventListener('online', flush)
+    return () => window.removeEventListener('online', flush)
+  }, [])
+
   function leaveMulti() {
     clearMultiSession()
     setMultiSession(null)
@@ -71,15 +86,21 @@ export default function App() {
     const lastSlug = engine.artistSlug
     const lastCategory = engine.category
     const lastConfig = engine.config
+    const lastGameKind = engine.gameKind
     return (
       <ResultsScreen
         score={engine.score}
         results={engine.results}
         artistSlug={lastSlug}
         category={lastCategory}
+        gameKind={engine.gameKind}
+        dailyKey={engine.dailyKey}
         onPlayAgain={() => {
           engine.reset()
-          if (lastSlug && lastCategory) void engine.start(lastSlug, lastCategory, lastConfig)
+          if (lastSlug && lastCategory) {
+            if (lastGameKind === 'daily') void engine.startDaily(lastSlug, lastCategory, lastConfig)
+            else void engine.start(lastSlug, lastCategory, lastConfig)
+          }
         }}
         onHome={engine.reset}
       />
@@ -99,13 +120,13 @@ export default function App() {
       return (
         <div>
           <Header active="home" onNavigate={navigate} />
-          <MultiSessionGate
+          <Suspense fallback={<Loading />}><MultiSessionGate
             session={multiSession}
             onLeave={leaveMulti}
             onSessionChange={(next) => {
               setMultiSession(next)
             }}
-          />
+          /></Suspense>
         </div>
       )
     }
@@ -113,23 +134,26 @@ export default function App() {
     return (
       <div>
         <Header active={view} onNavigate={navigate} />
-        {view === 'leaderboard' ? (
+        <Suspense fallback={<Loading />}>{view === 'leaderboard' ? (
           <LeaderboardScreen />
         ) : view === 'account' ? (
           <AccountScreen />
         ) : (
           <HomeScreen
             onStart={(slug, category, config) => void engine.start(slug, category, config)}
+            onStartDaily={(slug, category, config) => void engine.startDaily(slug, category, config)}
             onEnterLobby={(session) => setMultiSession(session)}
             onOpenAccount={() => navigate('account')}
           />
-        )}
+        )}</Suspense>
       </div>
     )
   }
 
   return <GameScreen engine={engine} onQuit={engine.reset} />
 }
+
+function Loading() { return <div className="flex min-h-[50vh] items-center justify-center text-muted">Ачааллаж байна…</div> }
 
 /** Routes lobby ↔ live multiplayer game from room.status (single lobby subscription). */
 function MultiSessionGate({

@@ -17,7 +17,8 @@ import {
   normalizeJoinPin,
   readJoinParamsFromUrl,
 } from '../lib/joinUrl'
-import { isSupabaseConfigured } from '../lib/supabase'
+import { isSupabaseConfigured, supabaseConfigurationError } from '../lib/supabase'
+import { loadProgress } from '../lib/progression'
 import type {
   ArtistOption,
   Category,
@@ -30,6 +31,7 @@ import type {
 
 interface Props {
   onStart: (slug: string, category: Category, config: GameConfig) => void
+  onStartDaily: (slug: string, category: Category, config: GameConfig) => void
   onEnterLobby: (session: MultiSession) => void
   onOpenAccount: () => void
 }
@@ -42,11 +44,19 @@ const TIME_OPTIONS = [10, 15, 20, 30]
 const VISIBLE_CATEGORY_COUNT = 6
 const LOBBY_REFRESH_MS = 15000
 
+function dailyLinkParams(): { category: string | null; pack: string | null } {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('daily') === '1'
+    ? { category: params.get('category'), pack: params.get('pack') }
+    : { category: null, pack: null }
+}
+
 function prettySlug(slug: string): string {
   return slug.charAt(0).toUpperCase() + slug.slice(1)
 }
 
-export function HomeScreen({ onStart, onEnterLobby, onOpenAccount }: Props) {
+export function HomeScreen({ onStart, onStartDaily, onEnterLobby, onOpenAccount }: Props) {
+  const [{ category: sharedDailyCategory, pack: sharedDailyPack }] = useState(dailyLinkParams)
   const [categories, setCategories] = useState<LeaderboardCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [loadingCategories, setLoadingCategories] = useState(true)
@@ -85,6 +95,7 @@ export function HomeScreen({ onStart, onEnterLobby, onOpenAccount }: Props) {
   const [publicLobbies, setPublicLobbies] = useState<PublicLobbyEntry[]>([])
   const [loadingLobbies, setLoadingLobbies] = useState(false)
   const [lobbyListError, setLobbyListError] = useState<string | null>(null)
+  const [progress] = useState(loadProgress)
 
   useEffect(() => {
     let cancelled = false
@@ -175,14 +186,15 @@ export function HomeScreen({ onStart, onEnterLobby, onOpenAccount }: Props) {
       .then((list) => {
         if (cancelled) return
         setCategories(list)
-        setSelectedCategory(list[0]?.slug ?? null)
+        const sharedCategoryExists = list.some((category) => category.slug === sharedDailyCategory)
+        setSelectedCategory(sharedCategoryExists ? sharedDailyCategory : list[0]?.slug ?? null)
       })
       .catch((err) => !cancelled && setCategoryError(err.message))
       .finally(() => !cancelled && setLoadingCategories(false))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [sharedDailyCategory])
 
   // Load packs for the selected category (re-runs when the category changes).
   useEffect(() => {
@@ -198,15 +210,16 @@ export function HomeScreen({ onStart, onEnterLobby, onOpenAccount }: Props) {
         if (cancelled) return
         setArtists(list)
         // Default to the first pack that has enough items to play.
-        const firstPlayable = list.find((a) => a.songCount >= MIN_SONGS)
-        setSelectedArtist(firstPlayable?.slug ?? null)
+        const sharedPack = list.find((artist) => artist.slug === sharedDailyPack && artist.songCount >= MIN_SONGS)
+        const firstPlayable = list.find((artist) => artist.songCount >= MIN_SONGS)
+        setSelectedArtist(sharedPack?.slug ?? firstPlayable?.slug ?? null)
       })
       .catch((err) => !cancelled && setArtistError(err.message))
       .finally(() => !cancelled && setLoadingArtists(false))
     return () => {
       cancelled = true
     }
-  }, [selectedCategory])
+  }, [selectedCategory, sharedDailyPack])
 
   const selectedCategoryData = categories.find((category) => category.slug === selectedCategory)
   const visibleCategories = categories.slice(0, VISIBLE_CATEGORY_COUNT)
@@ -579,9 +592,37 @@ export function HomeScreen({ onStart, onEnterLobby, onOpenAccount }: Props) {
 
       {!isSupabaseConfigured && (
         <StatusMessage variant="warning" className="mt-6">
-          ⚠ Supabase тохируулаагүй байна. <code>.env.example</code>-г <code>.env.local</code> болгож
-          хуулаад төслийн URL, anon key-ээ оруулна уу.
+          ⚠ {supabaseConfigurationError}
         </StatusMessage>
+      )}
+
+      {mode === 'solo' && (
+        <section className="mt-8 overflow-hidden rounded-3xl border border-cyan/25 bg-gradient-to-br from-cyan/10 via-surface to-purple/10 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-cyan">Өнөөдрийн сорил</p>
+              <h2 className="mt-2 text-2xl font-extrabold">Өдөр бүр нэг ижил 5 асуулт</h2>
+              <p className="mt-2 max-w-md text-sm text-muted">
+                Сонгосон багцаараа найзуудтайгаа оноогоо харьцуул. Одоогийн цуврал: 🔥 {progress.dailyStreak} өдөр
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              disabled={!canStart}
+              onClick={() =>
+                selectedArtist &&
+                selectedCategory &&
+                onStartDaily(selectedArtist, selectedCategory, {
+                  rounds: 5,
+                  timePerRound,
+                  maxPoints: MAX_POINTS,
+                })
+              }
+            >
+              Сорил эхлэх →
+            </Button>
+          </div>
+        </section>
       )}
 
       {/* Settings (Тохиргоо) */}

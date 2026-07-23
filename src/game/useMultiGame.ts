@@ -27,6 +27,7 @@ import type {
 const REVEAL_HOLD_MS = 4500
 const COUNTDOWN_SECONDS = 3
 const ROOM_SYNC_MS = 5000
+const ANSWER_REFRESH_DEBOUNCE_MS = 120
 
 export interface MultiGameState {
   room: GameRoom | null
@@ -126,6 +127,7 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
   const roundRequestRef = useRef(0)
   const syncRequestRef = useRef(0)
   const sawLobbyRef = useRef(false)
+  const answerRefreshTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
   roomRef.current = room
   roundRef.current = round
@@ -160,6 +162,23 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
       setRound(nextRound)
       setAnswers(nextAnswers)
       return { nextRound, nextAnswers }
+    },
+    [session.roomId],
+  )
+
+  // Realtime emits one event per submitted answer. Coalesce bursts into one
+  // authoritative read so a busy room does not issue N identical requests.
+  const scheduleAnswerRefresh = useCallback(
+    (roundIndex: number) => {
+      if (answerRefreshTimerRef.current !== null) window.clearTimeout(answerRefreshTimerRef.current)
+      answerRefreshTimerRef.current = window.setTimeout(() => {
+        answerRefreshTimerRef.current = null
+        void fetchRoundAnswers(session.roomId, roundIndex).then((nextAnswers) => {
+          if (roomRef.current?.currentRoundIndex === roundIndex) setAnswers(nextAnswers)
+        }).catch(() => {
+          // Keep the last confirmed answers until the next Realtime event or recovery sync.
+        })
+      }, ANSWER_REFRESH_DEBOUNCE_MS)
     },
     [session.roomId],
   )
@@ -287,18 +306,27 @@ export function useMultiGame(session: MultiSession): MultiGameApi {
         () => {
           const idx = roomRef.current?.currentRoundIndex
           if (idx == null) return
-          void fetchRoundAnswers(session.roomId, idx).then((nextAnswers) => {
-            if (roomRef.current?.currentRoundIndex === idx) setAnswers(nextAnswers)
-          })
+          scheduleAnswerRefresh(idx)
         },
       )
       .subscribe()
 
     return () => {
       cancelled = true
+      if (answerRefreshTimerRef.current !== null) {
+        window.clearTimeout(answerRefreshTimerRef.current)
+        answerRefreshTimerRef.current = null
+      }
       void supabase.removeChannel(channel)
     }
-  }, [session.roomId, session.playerId, refreshPlayers, refreshRoundBundle, syncRoomState])
+  }, [
+    session.roomId,
+    session.playerId,
+    refreshPlayers,
+    refreshRoundBundle,
+    scheduleAnswerRefresh,
+    syncRoomState,
+  ])
 
   useEffect(() => {
     let cancelled = false

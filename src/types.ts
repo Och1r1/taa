@@ -152,6 +152,7 @@ export interface RoomPlayer {
   correctCount: number
   joinedAt: string
   lastSeen: string
+  team: 1 | 2 | null
 }
 
 /** Local session after create/join — persisted in sessionStorage for refresh. */

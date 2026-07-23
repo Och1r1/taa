@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { GameEngine } from '../game/useGameEngine'
 import type { RoundOutcome } from '../types'
 import { Button } from '../components/Button'
@@ -37,6 +38,22 @@ export function GameScreen({ engine, onQuit }: Props) {
     reset,
     error,
   } = engine
+
+  useEffect(() => {
+    if (!round) return
+    const activeRound = round
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+      const optionIndex = Number(event.key) - 1
+      if (phase === 'playing' && optionIndex >= 0 && optionIndex < activeRound.options.length) {
+        const option = activeRound.options[optionIndex]
+        if (option.songId !== eliminatedOptionId) answer(option.songId)
+      }
+      if (phase === 'playing' && event.key.toLowerCase() === 'h') hint()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [answer, eliminatedOptionId, hint, phase, round])
 
   if (phase === 'loading') {
     return (

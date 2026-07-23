@@ -4,8 +4,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const url = process.env.VITE_SUPABASE_URL
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const runLive = process.env.RUN_LIVE_SUPABASE_TESTS === '1'
 
-const live = Boolean(url && anonKey && serviceKey)
+const live = Boolean(
+  runLive &&
+  url &&
+    anonKey &&
+    serviceKey &&
+    !url.includes('YOUR_PROJECT_REF.supabase.co'),
+)
 
 /** Prefix for all RPC test nicknames — used to purge leaderboard rows on teardown. */
 const TEST_NICK_PREFIX = 'vitest-'

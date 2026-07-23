@@ -45,6 +45,7 @@ export function OptionCard({
     <button
       disabled={disabled || eliminated}
       onClick={() => onPick(option.songId)}
+      aria-label={`${index + 1}. ${option.title}`}
       className={`group flex w-full items-center gap-4 rounded-2xl border-2 px-5 py-4 text-left
         text-ink transition disabled:cursor-default ${stateClass}`}
     >
@@ -55,7 +56,7 @@ export function OptionCard({
           backgroundColor: `${SHAPE_COLORS[index % 4]}1a`,
         }}
       >
-        {SHAPES[index % 4]}
+        <span aria-hidden="true">{SHAPES[index % 4]}</span>
       </span>
       <span
         className="text-base font-semibold"

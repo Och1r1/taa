@@ -16,6 +16,16 @@ one artist (Вандебо / Vandebo).
 npm install
 cp .env.example .env.local   # then fill in your Supabase values
 npm run dev                  # http://localhost:5173
+npm run verify:env           # validates Supabase configuration values
+```
+
+Use `npm run verify:env -- --remote` to include a DNS lookup when your network permits it.
+
+Run local unit tests with `npm test`. Live multiplayer RPC tests are intentionally opt-in because
+they create and remove real Supabase rows:
+
+```bash
+RUN_LIVE_SUPABASE_TESTS=1 npm test
 ```
 
 ### Supabase setup (required for audio + songs)
@@ -36,6 +46,17 @@ npm run dev                  # http://localhost:5173
      backfills existing scores. Run this after `media.sql` for an existing project.
    - `supabase/category-catalog.sql` — creates the active-category catalog used by the
      leaderboard. Run this after `media.sql` and `category-leaderboard.sql`.
+   - `supabase/daily-progress.sql` — optional server-side daily challenge, best-score leaderboard,
+     and cross-device completion foundation. Run after `media.sql` and `rooms-profiles.sql`; the
+     app falls back to local daily progress until it is applied.
+   - `supabase/content-ops.sql` — optional pack/item editorial metadata. Run after `media.sql` to
+     support difficulty-balanced content and featured packs.
+   - `supabase/analytics.sql` — optional privacy-conscious product-event collection. Run after
+     `rooms-profiles.sql`; events remain buffered locally until it is applied.
+   - `supabase/player-progress.sql` — optional account-backed XP, streak, mastery, and achievement
+     sync. Run after `rooms-profiles.sql`; signed-in profiles merge local and server progress safely.
+   - `supabase/room-teams.sql` — optional two-team event mode. Run after
+     `rooms-rls-auth-host.sql`; hosts can assign teams and export final team/player standings.
    - `supabase/rooms.sql` → `rooms-game.sql` → `rooms-polish.sql` → `rooms-auth.sql` →
      `rooms-leaderboard.sql` → `rooms-private-spectators.sql` → `rooms-profiles.sql` →
      `rooms-rematch.sql` → `rooms-rls-auth-host.sql` → `rooms-rate-limits.sql` →
@@ -80,6 +101,13 @@ Optionally set `start` (seconds into the track; defaults to ~30% in) and `slug` 
 
 ```jsonc
 { "title": "Цагийн Ово", "slug": "tsagiin-ovoo", "youtubeUrl": "https://youtu.be/…", "start": 45 }
+```
+
+Set `difficulty` from 1 (easy) to 5 (expert) on an item, or set a manifest-level
+`defaults.difficulty`, to prepare balanced packs:
+
+```json
+{ "title": "Цагийн Ово", "youtubeUrl": "https://youtu.be/…", "difficulty": 3 }
 ```
 
 **Run it:**

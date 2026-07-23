@@ -1,21 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Category, RoundResult, ScoreEntry } from '../types'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
 import { DISPLAY_NAME_KEY, updateDisplayName } from '../api/auth'
 import { fetchTopScores, saveScore } from '../api/scores'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { trackEvent } from '../lib/analytics'
+import { recordCompletedGame, type PlayerProgress } from '../lib/progression'
+import {
+  completeDailyChallenge,
+  fetchDailyLeaderboard,
+  getDailyChallenge,
+  type DailyLeaderboardEntry,
+} from '../api/dailyChallenges'
 
 interface Props {
   score: number
   results: RoundResult[]
   artistSlug: string | null
   category: Category | null
+  gameKind: 'solo' | 'daily'
+  dailyKey: string | null
   onPlayAgain: () => void
   onHome: () => void
 }
 
-export function ResultsScreen({ score, results, artistSlug, category, onPlayAgain, onHome }: Props) {
+export function ResultsScreen({
+  score,
+  results,
+  artistSlug,
+  category,
+  gameKind,
+  dailyKey,
+  onPlayAgain,
+  onHome,
+}: Props) {
   const correctCount = results.filter((r) => r.correct).length
   const maxScore = results.length * 1000
 
@@ -26,6 +45,10 @@ export function ResultsScreen({ score, results, artistSlug, category, onPlayAgai
 
   const [scores, setScores] = useState<ScoreEntry[]>([])
   const [loadingScores, setLoadingScores] = useState(true)
+  const [progress, setProgress] = useState<PlayerProgress | null>(null)
+  const completionRecorded = useRef(false)
+  const [dailyLeaderboard, setDailyLeaderboard] = useState<DailyLeaderboardEntry[]>([])
+  const [dailyLeaderboardError, setDailyLeaderboardError] = useState<string | null>(null)
 
   const canUseLeaderboard = isSupabaseConfigured && Boolean(artistSlug && category)
 
@@ -43,6 +66,75 @@ export function ResultsScreen({ score, results, artistSlug, category, onPlayAgai
       cancelled = true
     }
   }, [artistSlug, canUseLeaderboard])
+
+  useEffect(() => {
+    if (completionRecorded.current) return
+    completionRecorded.current = true
+    setProgress(recordCompletedGame({
+      score,
+      category,
+      correctCount,
+      rounds: results.length,
+      daily: gameKind === 'daily',
+      dateKey: dailyKey ?? undefined,
+    }))
+    trackEvent(gameKind === 'daily' ? 'daily_completed' : 'game_completed', {
+      score,
+      correct: correctCount,
+      rounds: results.length,
+    })
+  }, [correctCount, dailyKey, gameKind, results.length, score])
+
+  useEffect(() => {
+    if (
+      gameKind !== 'daily' ||
+      !dailyKey ||
+      !artistSlug ||
+      !category ||
+      !isSupabaseConfigured
+    ) return
+    const challengeDate = dailyKey
+    const challengeArtist = artistSlug
+    const challengeCategory = category
+    let cancelled = false
+    async function saveAndLoadDailyLeaderboard() {
+      try {
+        const challenge = await getDailyChallenge(challengeDate, challengeArtist, challengeCategory)
+        await completeDailyChallenge({
+          challengeId: challenge.id,
+          points: score,
+          correctCount,
+        })
+        const entries = await fetchDailyLeaderboard(challenge.id)
+        if (!cancelled) setDailyLeaderboard(entries)
+      } catch {
+        // Local streaks and sharing remain available until the optional migration is applied.
+        if (!cancelled) setDailyLeaderboardError('Онлайн өдөр тутмын самбар одоогоор бэлэн биш байна.')
+      }
+    }
+    void saveAndLoadDailyLeaderboard()
+    return () => {
+      cancelled = true
+    }
+  }, [artistSlug, category, correctCount, dailyKey, gameKind, score])
+
+  async function shareResult() {
+    const label = gameKind === 'daily' ? 'Өнөөдрийн сорил' : 'Таа'
+    const url = new URL(window.location.origin)
+    if (gameKind === 'daily') {
+      url.searchParams.set('daily', '1')
+      if (category) url.searchParams.set('category', category)
+      if (artistSlug) url.searchParams.set('pack', artistSlug)
+    }
+    const text = `${label}: ${score.toLocaleString()} оноо · ${correctCount}/${results.length} зөв. Чи намайг гүйцэх үү?`
+    try {
+      if (navigator.share) await navigator.share({ title: 'Таа', text, url: url.toString() })
+      else await navigator.clipboard.writeText(`${text} ${url}`)
+      trackEvent('result_shared', { game: gameKind, score })
+    } catch {
+      // A cancelled native share is not an error worth showing during a game.
+    }
+  }
 
   async function handleSave() {
     if (!artistSlug || !category || !name.trim() || saving) return
@@ -87,6 +179,11 @@ export function ResultsScreen({ score, results, artistSlug, category, onPlayAgai
         <div className="mt-2 text-muted">
           {correctCount} / {results.length} зөв · дээд оноо {maxScore.toLocaleString()}
         </div>
+        {gameKind === 'daily' && (
+          <div className="mt-4 rounded-full border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm font-bold text-cyan">
+            Өнөөдрийн сорил {progress && `· 🔥 ${progress.dailyStreak} өдөр`}
+          </div>
+        )}
       </div>
 
       {/* Round breakdown */}
@@ -140,6 +237,29 @@ export function ResultsScreen({ score, results, artistSlug, category, onPlayAgai
       )}
 
       {/* Leaderboard */}
+      {gameKind === 'daily' && (
+        <div className="mt-8">
+          <div className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-2">
+            Өнөөдрийн тэргүүлэгчид
+          </div>
+          {dailyLeaderboard.length > 0 ? (
+            <div className="space-y-2">
+              {dailyLeaderboard.map((entry, index) => (
+                <div key={`${entry.playerName}-${entry.completedAt}`} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+                  <span className="w-6 text-sm font-bold text-muted-2">{index + 1}</span>
+                  <span className="truncate text-sm font-semibold text-ink">{entry.playerName}</span>
+                  <span className="ml-auto text-sm font-bold text-cyan">{entry.points.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : dailyLeaderboardError ? (
+            <p className="text-sm text-muted">{dailyLeaderboardError}</p>
+          ) : (
+            <p className="text-sm text-muted">Тэргүүлэгчдийг ачааллаж байна…</p>
+          )}
+        </div>
+      )}
+
       {canUseLeaderboard && (
         <div className="mt-8">
           <div className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-2">
@@ -177,6 +297,9 @@ export function ResultsScreen({ score, results, artistSlug, category, onPlayAgai
       )}
 
       <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+        <Button variant="ghost" onClick={() => void shareResult()} className="flex-1">
+          ↗ Найзуудтай хуваалцах
+        </Button>
         <Button onClick={onPlayAgain} className="flex-1">
           ↻ Дахин тоглох
         </Button>

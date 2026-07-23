@@ -3,6 +3,8 @@ import type { Category, GameConfig, GamePhase, Round, RoundOutcome, RoundResult,
 import { fetchSongsByArtistSlug } from '../api/songs'
 import { buildOptions, pickRandom, shuffle } from './shuffle'
 import { computePoints } from './scoring'
+import { dailySeed, seededRandom } from './daily'
+import { trackEvent } from '../lib/analytics'
 
 export const DEFAULT_CONFIG: GameConfig = {
   rounds: 5,
@@ -30,10 +32,21 @@ interface EngineState {
   hintUsedThisRound: boolean
   eliminatedOptionId: string | null
   error: string | null
+  gameKind: 'solo' | 'daily'
+  dailyKey: string | null
+  randomSeed: string | null
 }
 
 type Action =
-  | { type: 'LOADING'; slug: string; category: Category; config: GameConfig }
+  | {
+      type: 'LOADING'
+      slug: string
+      category: Category
+      config: GameConfig
+      gameKind: 'solo' | 'daily'
+      dailyKey: string | null
+      randomSeed: string | null
+    }
   | { type: 'LOADED'; pool: Song[] }
   | { type: 'TICK' }
   | { type: 'ANSWER'; songId: string | null }
@@ -61,15 +74,22 @@ function initialState(config: GameConfig): EngineState {
     hintUsedThisRound: false,
     eliminatedOptionId: null,
     error: null,
+    gameKind: 'solo',
+    dailyKey: null,
+    randomSeed: null,
   }
 }
 
 /** Pick a fresh answer + build a round, avoiding already-used songs when possible. */
-function makeRound(pool: Song[], usedIds: string[]): { round: Round; answer: Song } {
+function makeRound(
+  pool: Song[],
+  usedIds: string[],
+  random: () => number = Math.random,
+): { round: Round; answer: Song } {
   const available = pool.filter((s) => !usedIds.includes(s.id))
   const candidates = available.length > 0 ? available : pool
-  const answer = pickRandom(candidates)
-  return { round: { answer, options: buildOptions(answer, pool) }, answer }
+  const answer = pickRandom(candidates, random)
+  return { round: { answer, options: buildOptions(answer, pool, random) }, answer }
 }
 
 function reveal(
@@ -118,15 +138,22 @@ function reducer(state: EngineState, action: Action): EngineState {
         phase: 'loading',
         artistSlug: action.slug,
         category: action.category,
+        gameKind: action.gameKind,
+        dailyKey: action.dailyKey,
+        randomSeed: action.randomSeed,
       }
 
     case 'LOADED': {
-      const { round, answer } = makeRound(action.pool, [])
+      const random = state.randomSeed ? seededRandom(state.randomSeed) : Math.random
+      const { round, answer } = makeRound(action.pool, [], random)
       return {
         ...initialState(state.config),
         phase: 'playing',
         artistSlug: state.artistSlug,
         category: state.category,
+        gameKind: state.gameKind,
+        dailyKey: state.dailyKey,
+        randomSeed: state.randomSeed,
         pool: action.pool,
         usedIds: [answer.id],
         round,
@@ -163,7 +190,10 @@ function reducer(state: EngineState, action: Action): EngineState {
       if (state.phase !== 'revealed') return state
       const isLast = state.roundIndex + 1 >= state.config.rounds
       if (isLast) return { ...state, phase: 'gameover' }
-      const { round, answer } = makeRound(state.pool, state.usedIds)
+      const random = state.randomSeed
+        ? seededRandom(`${state.randomSeed}:${state.roundIndex + 1}`)
+        : Math.random
+      const { round, answer } = makeRound(state.pool, state.usedIds, random)
       return {
         ...state,
         phase: 'playing',
@@ -205,10 +235,21 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
     slug: string,
     category: Category,
     config: GameConfig = DEFAULT_CONFIG,
+    mode: { kind?: 'solo' | 'daily'; dateKey?: string } = {},
   ) => {
     if (startRef.current) return
     startRef.current = true
-    dispatch({ type: 'LOADING', slug, category, config })
+    const gameKind = mode.kind ?? 'solo'
+    const key = gameKind === 'daily' ? mode.dateKey ?? new Date().toISOString().slice(0, 10) : null
+    dispatch({
+      type: 'LOADING',
+      slug,
+      category,
+      config,
+      gameKind,
+      dailyKey: key,
+      randomSeed: key ? dailySeed(key, slug) : null,
+    })
     try {
       const pool = await fetchSongsByArtistSlug(slug)
       if (pool.length < 4) {
@@ -217,12 +258,23 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
         )
       }
       dispatch({ type: 'LOADED', pool })
+      trackEvent(gameKind === 'daily' ? 'daily_started' : 'game_started', {
+        artist: slug,
+        category,
+        rounds: config.rounds,
+      })
     } catch (err) {
       dispatch({ type: 'ERROR', message: err instanceof Error ? err.message : String(err) })
     } finally {
       startRef.current = false
     }
   }, [])
+
+  const startDaily = useCallback(
+    (slug: string, category: Category, config: GameConfig = DEFAULT_CONFIG) =>
+      start(slug, category, { ...config, rounds: 5 }, { kind: 'daily' }),
+    [start],
+  )
 
   const answer = useCallback((songId: string) => dispatch({ type: 'ANSWER', songId }), [])
   const skip = useCallback(() => dispatch({ type: 'SKIP' }), [])
@@ -233,6 +285,7 @@ export function useGameEngine(config: GameConfig = DEFAULT_CONFIG) {
   return {
     ...state,
     start,
+    startDaily,
     answer,
     skip,
     hint,

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '../components/Button'
 import { EqualizerBars } from '../components/EqualizerBars'
-import { beginRoomCountdown, closeRoom, kickRoomPlayer, leaveRoom, rotateRoomInvite, saveMultiSession } from '../api/rooms'
+import { assignRoomTeam, beginRoomCountdown, closeRoom, kickRoomPlayer, leaveRoom, rotateRoomInvite, saveMultiSession } from '../api/rooms'
 import { useRoomPresence } from '../game/useRoomPresence'
 import { buildRoomShareUrl } from '../lib/joinUrl'
 import type { GameRoom, MultiSession, RoomPlayer } from '../types'
@@ -34,6 +34,8 @@ export function LobbyScreen({
   const [copied, setCopied] = useState<'pin' | 'link' | null>(null)
   const [inviteSecret, setInviteSecret] = useState<string | null>(session.inviteSecret)
   const [rotating, setRotating] = useState(false)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
+  const [presenterMode, setPresenterMode] = useState(false)
 
   const closed = Boolean(!loading && (!room || room.status === 'closed'))
   const pin = room?.pin ?? session.pin
@@ -102,6 +104,18 @@ export function LobbyScreen({
     }
   }
 
+  async function handleAssignTeam(playerId: string, team: 1 | 2) {
+    setAssigningId(playerId)
+    setActionError(null)
+    try {
+      await assignRoomTeam(session.roomId, playerId, team)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Баг оноож чадсангүй')
+    } finally {
+      setAssigningId(null)
+    }
+  }
+
   async function handleRotateInvite() {
     if (!session.isHost) return
     setRotating(true)
@@ -125,6 +139,37 @@ export function LobbyScreen({
     } catch {
       /* ignore */
     }
+  }
+
+  async function enterPresenterMode() {
+    setPresenterMode(true)
+    try {
+      await document.documentElement.requestFullscreen?.()
+    } catch {
+      // Fullscreen is optional; the presenter layout remains useful in-window.
+    }
+  }
+
+  async function exitPresenterMode() {
+    setPresenterMode(false)
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (presenterMode && session.isHost && room) {
+    return (
+      <PresenterLobby
+        room={room}
+        playerCount={seatedPlayers.length}
+        shareUrl={shareUrl}
+        starting={starting}
+        onStart={() => void handleStart()}
+        onExit={() => void exitPresenterMode()}
+      />
+    )
   }
 
   return (
@@ -233,6 +278,16 @@ export function LobbyScreen({
             </div>
           )}
 
+          {session.isHost && room && (
+            <button
+              type="button"
+              onClick={() => void enterPresenterMode()}
+              className="mt-5 rounded-xl border border-cyan/40 bg-cyan/10 px-4 py-3 text-sm font-bold text-cyan hover:bg-cyan/20"
+            >
+              ⛶ Танилцуулах горим
+            </button>
+          )}
+
           <div className="mb-3 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
             Тоглогчид ({seatedPlayers.length}/20)
           </div>
@@ -273,6 +328,21 @@ export function LobbyScreen({
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    {session.isHost && !player.isHost && (
+                      <div className="flex overflow-hidden rounded-lg border border-border text-xs font-bold">
+                        {[1, 2].map((team) => (
+                          <button
+                            key={team}
+                            type="button"
+                            disabled={assigningId === player.id}
+                            onClick={() => void handleAssignTeam(player.id, team as 1 | 2)}
+                            className={`px-2 py-1 ${player.team === team ? (team === 1 ? 'bg-cyan/20 text-cyan' : 'bg-pink/20 text-pink') : 'text-muted hover:bg-raised'}`}
+                          >
+                            Б{team}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {player.isHost && (
                       <span className="rounded-lg bg-raised px-2.5 py-1 text-xs font-bold text-muted">
                         Хөтлөгч
@@ -361,6 +431,57 @@ export function LobbyScreen({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function PresenterLobby({
+  room,
+  playerCount,
+  shareUrl,
+  starting,
+  onStart,
+  onExit,
+}: {
+  room: GameRoom
+  playerCount: number
+  shareUrl: string | null
+  starting: boolean
+  onStart: () => void
+  onExit: () => void
+}) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-base p-6 sm:p-12">
+      <main className="w-full max-w-5xl text-center">
+        <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-cyan">Таа · event mode</p>
+        <h1 className="mt-4 text-5xl font-black sm:text-7xl">Тоглоомд нэгдээрэй</h1>
+        <p className="mt-4 text-xl text-muted sm:text-2xl">
+          Камераараа QR уншуулах эсвэл өрөөний кодыг оруулна уу
+        </p>
+        <div className="mt-10 grid items-center gap-8 rounded-3xl border border-border bg-surface p-8 sm:grid-cols-2 sm:p-12">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-2">Өрөөний код</p>
+            <p className="mt-4 font-mono text-6xl font-black tracking-[0.22em] text-cyan sm:text-7xl">{room.pin}</p>
+            <p className="mt-8 text-lg text-muted">{room.artistSlug} · {room.rounds} раунд · {room.timePerRound}с</p>
+            <p className="mt-3 text-2xl font-bold">👥 {playerCount} тоглогч</p>
+          </div>
+          {shareUrl ? (
+            <div className="mx-auto rounded-2xl bg-white p-5">
+              <QRCodeSVG value={shareUrl} size={260} marginSize={0} title="Өрөөнд нэгдэх QR" />
+            </div>
+          ) : (
+            <p className="text-muted">QR холбоос бэлдэж байна…</p>
+          )}
+        </div>
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
+          <Button disabled={starting} onClick={onStart} className="px-10 py-4 text-lg">
+            {starting ? 'Эхлүүлж байна…' : '▶ Тоглоом эхлүүлэх'}
+          </Button>
+          <Button variant="ghost" onClick={onExit} className="px-8 py-4">
+            Хөтлөгчийн самбар
+          </Button>
+        </div>
+      </main>
     </div>
   )
 }
