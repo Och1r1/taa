@@ -166,146 +166,164 @@ export function ResultsScreen({
     }
   }
 
+  const hasSidebar = canUseLeaderboard || gameKind === 'daily'
+
   return (
-    <div className="mx-auto w-full max-w-xl px-6 py-14">
-      <div className="flex flex-col items-center text-center animate-fade-up">
-        <EqualizerBars className="mb-6 h-10" />
-        <div className="text-sm font-bold uppercase tracking-widest text-muted-2">
-          Тоглоом дууслаа
-        </div>
-        <div className="mt-3 bg-gradient-to-r from-pink via-purple to-cyan bg-clip-text text-6xl font-black text-transparent">
-          {score.toLocaleString()}
-        </div>
-        <div className="mt-2 text-muted">
-          {correctCount} / {results.length} зөв · дээд оноо {maxScore.toLocaleString()}
-        </div>
-        {gameKind === 'daily' && (
-          <div className="mt-4 rounded-full border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm font-bold text-cyan">
-            Өнөөдрийн сорил {progress && `· 🔥 ${progress.dailyStreak} өдөр`}
+    <div className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-8 lg:py-14">
+      <div className={`grid gap-6 ${hasSidebar ? 'lg:grid-cols-[1fr_360px]' : ''}`}>
+        {/* Left: score + round breakdown + actions */}
+        <div className="animate-fade-up">
+          <EqualizerBars className="mb-5 h-8" />
+          <div className="text-xs font-extrabold uppercase tracking-[0.16em] text-muted-2">
+            Тоглоом дууслаа
           </div>
-        )}
-      </div>
-
-      {/* Round breakdown */}
-      <div className="mt-10">
-        <div className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-2">
-          Раундын дүн
-        </div>
-        <div className="space-y-2">
-          {results.map((r) => (
-            <div
-              key={r.roundIndex}
-              className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3"
-            >
-              <span className="text-xs font-bold text-muted-2">Р{r.roundIndex + 1}</span>
-              <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                  r.correct ? 'bg-accent-green/15 text-accent-green' : 'bg-pink/15 text-pink'
-                }`}
-              >
-                {r.correct ? '✓' : '✕'}
-              </span>
-              <span className="truncate text-sm text-ink-soft">{r.answerTitle}</span>
-              {r.hintUsed && <span className="text-xs text-amber">💡</span>}
-              <span className="ml-auto text-sm font-bold text-cyan">
-                +{r.points.toLocaleString()}
-              </span>
+          <div className="mt-2 bg-gradient-to-br from-pink via-purple to-cyan bg-clip-text text-6xl font-black leading-none text-transparent sm:text-7xl">
+            {score.toLocaleString()}
+          </div>
+          <div className="mt-2.5 text-sm text-muted">
+            {correctCount} / {results.length} зөв · дээд оноо {maxScore.toLocaleString()}
+          </div>
+          {gameKind === 'daily' && (
+            <div className="mt-4 inline-block rounded-full border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm font-bold text-cyan">
+              Өнөөдрийн сорил {progress && `· 🔥 ${progress.dailyStreak} өдөр`}
             </div>
-          ))}
-        </div>
-      </div>
+          )}
 
-      {/* Save score */}
-      {canUseLeaderboard && !savedId && (
-        <div className="mt-8 rounded-2xl border border-border bg-surface p-5">
-          <div className="mb-3 text-sm font-semibold text-ink">Онооны самбарт нэрээ бичих</div>
-          <div className="flex gap-3">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              maxLength={24}
-              placeholder="Таны нэр"
-              className="flex-1 rounded-xl border border-border bg-base px-4 py-3 text-ink outline-none placeholder:text-muted-2 focus:border-cyan/60"
-            />
-            <Button onClick={handleSave} disabled={!name.trim() || saving}>
-              {saving ? 'Хадгалж…' : 'Хадгалах'}
+          {/* Round breakdown */}
+          <div className="mt-8 text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+            Раундын дүн
+          </div>
+          <div className="mt-3.5 space-y-2.5">
+            {results.map((r) => (
+              <div
+                key={r.roundIndex}
+                className="flex items-center gap-3.5 rounded-2xl border border-border bg-surface px-4 py-3.5"
+              >
+                <span className="w-6 text-xs font-extrabold text-muted-2">Р{r.roundIndex + 1}</span>
+                <span
+                  className={`flex h-[26px] w-[26px] items-center justify-center rounded-full text-[13px] font-extrabold ${
+                    r.correct ? 'bg-accent-green/15 text-accent-green' : 'bg-pink/15 text-pink'
+                  }`}
+                >
+                  {r.correct ? '✓' : '✕'}
+                </span>
+                <span className={`flex-1 truncate text-sm ${r.correct ? 'text-ink-soft' : 'text-muted'}`}>
+                  {r.answerTitle}
+                </span>
+                {r.hintUsed && <span className="text-xs text-amber">💡</span>}
+                <span className={`text-sm font-extrabold ${r.points > 0 ? 'text-cyan' : 'text-muted-2'}`}>
+                  +{r.points.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Button onClick={onPlayAgain} className="flex-1">
+              ↻ Дахин тоглох
+            </Button>
+            <Button variant="ghost" onClick={() => void shareResult()} className="flex-1">
+              ↗ Хуваалцах
+            </Button>
+            <Button variant="ghost" onClick={onHome} className="flex-1">
+              Нүүр
             </Button>
           </div>
-          {saveError && <p className="mt-2 text-sm text-pink">{saveError}</p>}
         </div>
-      )}
 
-      {/* Leaderboard */}
-      {gameKind === 'daily' && (
-        <div className="mt-8">
-          <div className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-2">
-            Өнөөдрийн тэргүүлэгчид
-          </div>
-          {dailyLeaderboard.length > 0 ? (
-            <div className="space-y-2">
-              {dailyLeaderboard.map((entry, index) => (
-                <div key={`${entry.playerName}-${entry.completedAt}`} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-                  <span className="w-6 text-sm font-bold text-muted-2">{index + 1}</span>
-                  <span className="truncate text-sm font-semibold text-ink">{entry.playerName}</span>
-                  <span className="ml-auto text-sm font-bold text-cyan">{entry.points.toLocaleString()}</span>
+        {/* Right: save score + leaderboards */}
+        {hasSidebar && (
+          <div className="flex flex-col gap-5 lg:border-l lg:border-border lg:pl-6">
+            {canUseLeaderboard && !savedId && (
+              <div className="rounded-2xl border border-dashed border-border p-5 text-center">
+                <div className="mb-3 text-sm text-muted">Онооны самбарт нэрээ бич</div>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                  maxLength={24}
+                  placeholder="Таны нэр"
+                  className="mb-3 w-full rounded-xl border border-border bg-base px-4 py-3 text-center text-ink outline-none placeholder:text-muted-2 focus:border-cyan/60"
+                />
+                <Button onClick={handleSave} disabled={!name.trim() || saving} className="w-full">
+                  {saving ? 'Хадгалж…' : 'Хадгалах'}
+                </Button>
+                {saveError && <p className="mt-2 text-sm text-pink">{saveError}</p>}
+              </div>
+            )}
+
+            {gameKind === 'daily' && (
+              <div>
+                <div className="mb-3.5 text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+                  Өнөөдрийн тэргүүлэгчид
                 </div>
-              ))}
-            </div>
-          ) : dailyLeaderboardError ? (
-            <p className="text-sm text-muted">{dailyLeaderboardError}</p>
-          ) : (
-            <p className="text-sm text-muted">Тэргүүлэгчдийг ачааллаж байна…</p>
-          )}
-        </div>
-      )}
-
-      {canUseLeaderboard && (
-        <div className="mt-8">
-          <div className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-2">
-            Онооны самбар
-          </div>
-          {loadingScores ? (
-            <p className="text-sm text-muted">Ачааллаж байна…</p>
-          ) : scores.length === 0 ? (
-            <p className="text-sm text-muted">Одоохондоо оноо алга. Эхнийх нь бол!</p>
-          ) : (
-            <div className="space-y-2">
-              {scores.map((s, i) => {
-                const isMine = s.id === savedId
-                return (
-                  <div
-                    key={s.id}
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-                      isMine ? 'border-cyan bg-cyan/10' : 'border-border bg-surface'
-                    }`}
-                  >
-                    <span className="w-6 text-sm font-bold text-muted-2">{i + 1}</span>
-                    <span className="truncate text-sm font-semibold text-ink">{s.playerName}</span>
-                    <span className="text-xs text-muted-2">
-                      {s.correctCount}/{s.rounds}
-                    </span>
-                    <span className="ml-auto text-sm font-bold text-cyan">
-                      {s.points.toLocaleString()}
-                    </span>
+                {dailyLeaderboard.length > 0 ? (
+                  <div className="space-y-2">
+                    {dailyLeaderboard.map((entry, index) => (
+                      <div
+                        key={`${entry.playerName}-${entry.completedAt}`}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+                      >
+                        <span className="w-6 text-sm font-extrabold text-muted-2">{index + 1}</span>
+                        <span className="flex-1 truncate text-sm font-semibold text-ink">{entry.playerName}</span>
+                        <span className="text-sm font-extrabold text-cyan">{entry.points.toLocaleString()}</span>
+                      </div>
+                    ))}
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                ) : dailyLeaderboardError ? (
+                  <p className="text-sm text-muted">{dailyLeaderboardError}</p>
+                ) : (
+                  <p className="text-sm text-muted">Тэргүүлэгчдийг ачааллаж байна…</p>
+                )}
+              </div>
+            )}
 
-      <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-        <Button variant="ghost" onClick={() => void shareResult()} className="flex-1">
-          ↗ Найзуудтай хуваалцах
-        </Button>
-        <Button onClick={onPlayAgain} className="flex-1">
-          ↻ Дахин тоглох
-        </Button>
-        <Button variant="ghost" onClick={onHome} className="flex-1">
-          Нүүр хуудас
-        </Button>
+            {canUseLeaderboard && (
+              <div>
+                <div className="mb-3.5 text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+                  Онооны самбар
+                </div>
+                {loadingScores ? (
+                  <p className="text-sm text-muted">Ачааллаж байна…</p>
+                ) : scores.length === 0 ? (
+                  <p className="text-sm text-muted">Одоохондоо оноо алга. Эхнийх нь бол!</p>
+                ) : (
+                  <div className="space-y-2">
+                    {scores.map((s, i) => {
+                      const isMine = s.id === savedId
+                      return (
+                        <div
+                          key={s.id}
+                          className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+                            isMine
+                              ? 'border-pink bg-gradient-to-br from-pink/15 to-surface'
+                              : 'border-border bg-surface'
+                          }`}
+                        >
+                          <span
+                            className={`w-6 text-sm font-black ${
+                              i === 0 ? 'text-amber' : i === 1 ? 'text-ink-soft' : isMine ? 'text-pink' : 'text-muted-2'
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          <span className="flex-1 truncate text-sm font-semibold text-ink">
+                            {s.playerName}
+                            {isMine && <span className="ml-1 text-xs font-normal text-muted"> · чи</span>}
+                          </span>
+                          <span className="text-xs text-muted-2">
+                            {s.correctCount}/{s.rounds}
+                          </span>
+                          <span className="text-sm font-extrabold text-cyan">{s.points.toLocaleString()}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

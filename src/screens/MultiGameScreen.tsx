@@ -141,7 +141,7 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
 
     return (
       <div className="mx-auto w-full max-w-2xl px-6 py-10">
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-2">Хамтдаа · дүн</p>
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">Хамтдаа · дүн</p>
         <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Тоглоом дууслаа</h1>
         <p className="mt-2 text-muted">
           {session.isHost
@@ -287,36 +287,42 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <div className="text-xs font-bold tracking-widest text-muted-2">РАУНД</div>
-          <div className="text-lg font-extrabold">
-            {(game.room.currentRoundIndex ?? 0) + 1}
-            <span className="text-muted"> / {game.room.rounds}</span>
+    <div className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
+      {/* Status bar */}
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <EqualizerBars className="h-5" />
+          <div>
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-2">Раунд</div>
+            <div className="text-lg font-black leading-none">
+              {(game.room.currentRoundIndex ?? 0) + 1}
+              <span className="font-bold text-muted-2"> / {game.room.rounds}</span>
+            </div>
           </div>
         </div>
-        <button
-          disabled={leaving}
-          onClick={() => void handleLeave()}
-          className="text-sm text-muted hover:text-ink"
-        >
-          Гарах
-        </button>
-        {session.isHost && (
+        <div className="flex items-center gap-2">
+          {session.isHost && (
+            <button
+              type="button"
+              onClick={() => void togglePresenterMode()}
+              className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-cyan transition hover:border-cyan/60 hover:bg-cyan/10"
+            >
+              ⛶ Танилцуулах
+            </button>
+          )}
           <button
-            type="button"
-            onClick={() => void togglePresenterMode()}
-            className="rounded-lg px-3 py-2 text-sm font-bold text-cyan hover:bg-cyan/10"
+            disabled={leaving}
+            onClick={() => void handleLeave()}
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-muted transition hover:border-pink/60 hover:text-ink disabled:opacity-40"
           >
-            ⛶ Танилцуулах
+            Гарах
           </button>
-        )}
+        </div>
         <div className="text-right">
-          <div className="text-xs font-bold tracking-widest text-muted-2">
-            {isSpectator ? 'ҮЗЭГЧ' : 'ОНОО'}
+          <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-2">
+            {isSpectator ? 'Үзэгч' : 'Оноо'}
           </div>
-          <div className="text-lg font-extrabold text-cyan">
+          <div className="text-lg font-black leading-none text-cyan">
             {isSpectator ? '—' : (you?.score ?? 0).toLocaleString()}
           </div>
         </div>
@@ -342,8 +348,8 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
 
       {isCountdown ? (
         <Centered>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-2">Дараагийн раунд</p>
-          <p className="mt-3 text-6xl font-extrabold text-cyan">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-muted-2">Дараагийн раунд</p>
+          <p className="mt-3 text-6xl font-black text-cyan">
             {Math.max(0, Math.ceil(game.countdownLeft))}
           </p>
           <p className="mt-3 text-muted">Бэлдээрэй!</p>
@@ -356,9 +362,9 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
       ) : (
         <>
           {!revealed && (
-            <div className="mb-8">
+            <div className="mb-7">
               <TimerBar timeLeft={game.timeLeft} total={game.room.timePerRound} />
-              <p className="mt-2 text-center text-xs text-muted">
+              <p className="mt-2.5 text-center text-xs text-muted">
                 Хариулсан: {answeredCount}/{answeringPlayers.length}
               </p>
             </div>
@@ -370,6 +376,9 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
 
           <MediaStage item={mediaItem} revealed={revealed} />
 
+          <div className="mb-3.5 mt-2 text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+            Аль дуу вэ?
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {game.round.options.map((opt, i) => (
               <OptionCard
@@ -417,7 +426,7 @@ export function MultiGameScreen({ session, onLeave, onSessionChange }: Props) {
                 </div>
               )}
 
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-2">
+              <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
                 Онооны самбар
               </div>
               <ol className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">

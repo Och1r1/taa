@@ -139,35 +139,54 @@ export function AccountScreen() {
     }
   }
 
+  const avatarInitial = (nickname.trim().charAt(0) || 'Т').toUpperCase()
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 pb-16 pt-10">
-      <h1 className="mb-8 text-3xl font-extrabold">Профайл</h1>
+    <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">
+      {/* Profile header */}
+      <div className="mb-8 flex items-center gap-4 sm:gap-[18px]">
+        <div className="grid h-16 w-16 flex-none place-items-center rounded-[20px] bg-gradient-to-br from-pink to-purple text-2xl font-black text-white shadow-[0_12px_30px_-6px_rgba(168,85,247,0.55)] sm:h-[76px] sm:w-[76px] sm:text-[32px]">
+          {avatarInitial}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-2xl font-black tracking-[-0.02em] text-ink sm:text-[34px]">
+            {nickname.trim() || 'Профайл'}
+          </h1>
+          <div className="mt-0.5 text-sm text-muted">
+            {progress.gamesPlayed} тоглоом тоглосон · Түвшин {progress.level}
+          </div>
+        </div>
+      </div>
 
-      <section className="mb-8 grid max-w-md grid-cols-3 gap-3" aria-label="Тоглогчийн ахиц">
-        <div className="rounded-2xl border border-cyan/25 bg-cyan/10 p-4">
-          <div className="text-xs font-bold text-muted-2">ТҮВШИН</div>
-          <div className="mt-1 text-2xl font-black text-cyan">{progress.level}</div>
+      {/* Stat cards */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3.5" aria-label="Тоглогчийн ахиц">
+        <div className="rounded-2xl border border-cyan/30 bg-cyan/[0.08] p-5">
+          <div className="text-xs font-extrabold uppercase tracking-[0.1em] text-muted-2">ТҮВШИН</div>
+          <div className="mt-1 text-3xl font-black text-cyan sm:text-[34px]">{progress.level}</div>
         </div>
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <div className="text-xs font-bold text-muted-2">XP</div>
-          <div className="mt-1 text-2xl font-black">{progress.xp}</div>
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <div className="text-xs font-extrabold uppercase tracking-[0.1em] text-muted-2">XP</div>
+          <div className="mt-1 text-3xl font-black text-ink sm:text-[34px]">{progress.xp}</div>
         </div>
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <div className="text-xs font-bold text-muted-2">ЦУВРАЛ</div>
-          <div className="mt-1 text-2xl font-black">🔥 {progress.dailyStreak}</div>
+        <div className="rounded-2xl border border-amber/30 bg-amber/[0.08] p-5">
+          <div className="text-xs font-extrabold uppercase tracking-[0.1em] text-muted-2">ЦУВРАЛ</div>
+          <div className="mt-1 flex items-center gap-2 text-3xl font-black text-amber sm:text-[34px]">
+            <span aria-hidden>🔥</span>
+            {progress.dailyStreak}
+          </div>
         </div>
-        <p className="col-span-full text-sm text-muted">{progress.gamesPlayed} тоглоом тоглосон</p>
-        {syncMessage && <p className="col-span-full text-xs text-muted">{syncMessage}</p>}
       </section>
+      {syncMessage && <p className="mt-3 text-xs text-muted">{syncMessage}</p>}
 
-      <section className="mb-8 max-w-md rounded-2xl border border-border bg-surface p-5">
+      {/* Weekly goal */}
+      <section className="mt-6 rounded-2xl border border-border bg-surface p-5 sm:mt-[22px]">
         <div className="flex items-center justify-between gap-3">
           <SectionLabel className="mb-0">Энэ долоо хоногийн зорилго</SectionLabel>
-          <span className="text-sm font-bold text-cyan">{Math.min(progress.weeklyGames, WEEKLY_GOAL_GAMES)}/{WEEKLY_GOAL_GAMES}</span>
+          <span className="text-sm font-extrabold text-cyan">{Math.min(progress.weeklyGames, WEEKLY_GOAL_GAMES)} / {WEEKLY_GOAL_GAMES}</span>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-raised">
+        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-raised">
           <div
-            className="h-full rounded-full bg-cyan transition-[width]"
+            className="h-full rounded-full bg-gradient-to-r from-cyan to-purple transition-[width]"
             style={{ width: `${Math.min(100, (progress.weeklyGames / WEEKLY_GOAL_GAMES) * 100)}%` }}
           />
         </div>
@@ -175,11 +194,11 @@ export function AccountScreen() {
       </section>
 
       {progress.achievements.length > 0 && (
-        <section className="mb-8 max-w-md">
+        <section className="mt-6 sm:mt-[22px]">
           <SectionLabel className="mb-3">Амжилтууд</SectionLabel>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             {progress.achievements.map((achievement) => (
-              <span key={achievement} className="rounded-full border border-amber/40 bg-amber/10 px-3 py-1.5 text-sm font-bold text-amber">
+              <span key={achievement} className="inline-flex items-center gap-2 rounded-full border border-amber/40 bg-amber/10 px-4 py-2 text-sm font-bold text-amber">
                 {achievement === 'first-game'
                   ? '🎮 Анхны тоглоом'
                   : achievement === 'daily-streak-3'
@@ -194,20 +213,20 @@ export function AccountScreen() {
       )}
 
       {Object.keys(progress.categoryMastery).length > 0 && (
-        <section className="mb-8 max-w-md">
+        <section className="mt-6 sm:mt-6">
           <SectionLabel className="mb-3">Ангиллын эзэмшил</SectionLabel>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {Object.entries(progress.categoryMastery).map(([category, mastery]) => (
-              <div key={category} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
-                <div className="flex justify-between gap-3 font-bold"><span>{category}</span><span className="text-cyan">{mastery.games} тоглоом</span></div>
-                <div className="mt-1 text-muted">{mastery.correct}/{mastery.rounds} зөв</div>
+              <div key={category} className="rounded-2xl border border-border bg-surface px-4 py-3.5 sm:px-[18px]">
+                <div className="flex justify-between gap-3 font-bold text-ink"><span>{category}</span><span className="text-cyan">{mastery.games} тоглоом</span></div>
+                <div className="mt-1 text-xs text-muted">{mastery.correct}/{mastery.rounds} зөв</div>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      <section className="mb-8 max-w-md">
+      <section className="mt-6 sm:mt-6">
         <SectionLabel className="mb-2">Нэр</SectionLabel>
         <NicknameInput
           id="account-nickname"
@@ -232,15 +251,19 @@ export function AccountScreen() {
         />
       </section>
 
+      <div className="mt-6 sm:mt-6">
       <SectionLabel className="mb-2">Нэвтрэлт</SectionLabel>
       {authEmail ? (
-        <div className="max-w-md rounded-2xl border border-border bg-surface p-5">
-          <p className="text-sm text-muted">
+        <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:items-center">
+          <div className="text-sm text-muted">
             Нэвтэрсэн: <span className="font-bold text-ink">{authEmail}</span>
-          </p>
+            {syncMessage && syncMessage.includes('синк') && (
+              <div className="mt-0.5 text-xs text-accent-green">✓ Ахиц бүртгэлтэй синк хийгдсэн</div>
+            )}
+          </div>
           <Button
             variant="ghost"
-            className="mt-4"
+            className="shrink-0"
             disabled={signOutBusy}
             onClick={() => void handleSignOut()}
           >
@@ -248,7 +271,7 @@ export function AccountScreen() {
           </Button>
         </div>
       ) : (
-        <div className="max-w-md rounded-2xl border border-border bg-surface p-5">
+        <div className="rounded-2xl border border-border bg-surface p-5">
           <PillToggle
             className="mb-4"
             value={authMethod}
@@ -366,6 +389,7 @@ export function AccountScreen() {
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }

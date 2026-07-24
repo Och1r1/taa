@@ -5,7 +5,7 @@ import { fetchCategories } from '../api/categories'
 import { fetchTopScoresForCategory, type ScoreModeFilter } from '../api/scores'
 import { isSupabaseConfigured } from '../lib/supabase'
 
-const RANK = ['🥇', '🥈', '🥉']
+const RANK_COLOR = ['#f59e0b', '#cdd3e0', '#d08b5c']
 const VISIBLE_CATEGORY_COUNT = 5
 
 type ModeFilter = 'all' | ScoreModeFilter
@@ -137,29 +137,41 @@ export function LeaderboardScreen() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 pb-16 pt-10">
+    <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">
       {/* Title */}
-      <div className="mb-8 animate-fade-up">
-        <h1 className="text-4xl font-extrabold leading-tight">
-          🏆 <span className="text-amber">Тэргүүлэгчид</span>
+      <div className="mb-1 animate-fade-up">
+        <h1 className="flex items-center gap-3 text-3xl font-black leading-tight tracking-tight text-ink sm:text-4xl">
+          <svg
+            width="30"
+            height="30"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth="2"
+            className="shrink-0"
+            aria-hidden="true"
+          >
+            <path d="M6 9V2h12v7a6 6 0 0 1-12 0ZM4 22h16M9 22v-4h6v4M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3" />
+          </svg>
+          Тэргүүлэгчид
         </h1>
-        <p className="mt-2 text-muted">Ангилал бүрийн хамгийн өндөр оноо — ганцаараа болон хамтдаа.</p>
+        <p className="mt-2 text-sm text-muted">Ангилал бүрийн хамгийн өндөр оноо — ганцаараа болон хамтдаа.</p>
       </div>
 
       {categoriesLoading ? (
-        <div className="mb-6 flex items-center gap-3 text-sm text-muted">
+        <div className="mt-6 flex items-center gap-3 text-sm text-muted">
           <EqualizerBars className="h-4" /> Ангиллуудыг ачааллаж байна…
         </div>
       ) : categoryError ? (
-        <p className="mb-6 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
+        <p className="mt-6 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
           {categoryError}
         </p>
       ) : categories.length === 0 ? (
-        <p className="mb-6 rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
+        <p className="mt-6 rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-amber">
           Идэвхтэй ангилал алга байна.
         </p>
       ) : (
-        <div className="mb-6" aria-label="Ангилал сонгох">
+        <div className="mt-6" aria-label="Ангилал сонгох">
           <div className="flex flex-wrap gap-2">
             {visibleCategories.map((item) => {
               const selected = item.slug === category
@@ -167,7 +179,7 @@ export function LeaderboardScreen() {
                 <button
                   key={item.slug}
                   onClick={() => selectCategory(item.slug)}
-                  className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
                     selected
                       ? 'border-cyan/60 bg-cyan/10 text-ink'
                       : 'border-border bg-surface text-muted hover:bg-raised hover:text-ink'
@@ -183,7 +195,7 @@ export function LeaderboardScreen() {
                   setShowMore((open) => !open)
                   setCategorySearch('')
                 }}
-                className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
                   overflowCategories.some((item) => item.slug === category)
                     ? 'border-cyan/60 bg-cyan/10 text-ink'
                     : 'border-border bg-surface text-muted hover:bg-raised hover:text-ink'
@@ -195,7 +207,7 @@ export function LeaderboardScreen() {
             )}
           </div>
           {showMore && (
-            <div className="mt-2 rounded-2xl border border-border bg-surface p-3">
+            <div className="mt-3 rounded-2xl border border-border bg-surface p-3">
               <input
                 value={categorySearch}
                 onChange={(event) => setCategorySearch(event.target.value)}
@@ -223,42 +235,49 @@ export function LeaderboardScreen() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap gap-2" aria-label="Тоглоомын горим">
-        {MODE_FILTERS.map((item) => {
-          const selected = item.id === modeFilter
-          return (
+      <div className="my-4 h-px bg-border" />
+
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">Горим</span>
+        <div className="flex flex-wrap gap-2" aria-label="Тоглоомын горим">
+          {MODE_FILTERS.map((item) => {
+            const selected = item.id === modeFilter
+            return (
+              <button
+                key={item.id}
+                onClick={() => selectMode(item.id)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                  selected
+                    ? 'border-pink/60 bg-pink/10 text-ink'
+                    : 'border-border bg-surface text-muted hover:bg-raised hover:text-ink'
+                }`}
+              >
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <span className="mx-1.5 hidden h-5 w-px bg-border sm:block" />
+
+        <div className="flex flex-wrap gap-2" aria-label="Тэргүүлэгчдийн хугацаа">
+          {([
+            { id: 'all', label: 'Бүх цаг' },
+            { id: 'season', label: 'Энэ сарын casual улирал' },
+          ] as { id: PeriodFilter; label: string }[]).map((item) => (
             <button
               key={item.id}
-              onClick={() => selectMode(item.id)}
-              className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
-                selected
-                  ? 'border-pink/60 bg-pink/10 text-ink'
+              onClick={() => selectPeriod(item.id)}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                item.id === periodFilter
+                  ? 'border-amber/60 bg-amber/10 text-ink'
                   : 'border-border bg-surface text-muted hover:bg-raised hover:text-ink'
               }`}
             >
               {item.label}
             </button>
-          )
-        })}
-      </div>
-
-      <div className="mb-6 flex flex-wrap gap-2" aria-label="Тэргүүлэгчдийн хугацаа">
-        {([
-          { id: 'all', label: 'Бүх цаг' },
-          { id: 'season', label: 'Энэ сарын casual улирал' },
-        ] as { id: PeriodFilter; label: string }[]).map((item) => (
-          <button
-            key={item.id}
-            onClick={() => selectPeriod(item.id)}
-            className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
-              item.id === periodFilter
-                ? 'border-amber/60 bg-amber/10 text-ink'
-                : 'border-border bg-surface text-muted hover:bg-raised hover:text-ink'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+          ))}
+        </div>
       </div>
 
       {!isSupabaseConfigured ? (
@@ -284,41 +303,50 @@ export function LeaderboardScreen() {
               Casual улирал: энэ нь найрсаг өрсөлдөөн бөгөөд оноо серверээр бүрэн баталгаажаагүй.
             </p>
           )}
-          <div className="space-y-2">
-            {scores.map((s, i) => (
-              <div
-                key={s.id}
-                className={`flex items-center gap-4 rounded-2xl border px-5 py-4 ${
-                  i < 3 ? 'border-amber/40 bg-amber/5' : 'border-border bg-surface'
-                }`}
-              >
-                <span className="w-8 text-center text-lg font-black text-muted-2">
-                  {RANK[i] ?? i + 1}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="truncate text-base font-bold text-ink">{s.playerName}</div>
-                    {s.mode === 'multi' && (
-                      <span className="shrink-0 rounded-lg bg-pink/15 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-pink">
-                        Хамтдаа
-                      </span>
-                    )}
+          <div className="mt-6 flex flex-col gap-2.5">
+            {scores.map((s, i) => {
+              const top = i < 3
+              const rankColor = RANK_COLOR[i] ?? '#6b7488'
+              return (
+                <div
+                  key={s.id}
+                  className={`flex items-center gap-4 rounded-2xl border px-5 py-4 ${
+                    top ? 'border-amber/40 bg-amber/5' : 'border-border bg-surface'
+                  }`}
+                >
+                  <span
+                    className={`w-8 shrink-0 text-center font-black ${top ? 'text-xl' : 'text-base'}`}
+                    style={{ color: rankColor }}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className={`truncate text-ink ${top ? 'text-base font-extrabold' : 'text-[15px] font-bold'}`}>
+                        {s.playerName}
+                      </div>
+                      {s.mode === 'multi' && (
+                        <span className="shrink-0 rounded-md bg-pink/15 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-pink">
+                          Хамтдаа
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-2">
+                      {prettyArtist(s.artistSlug)} · {s.correctCount}/{s.rounds} зөв
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-2">
-                    {prettyArtist(s.artistSlug)} · {s.correctCount}/{s.rounds} зөв
-                  </div>
+                  <span className={`ml-auto font-black text-cyan ${top ? 'text-lg' : 'text-base'}`}>
+                    {s.points.toLocaleString()}
+                  </span>
                 </div>
-                <span className="ml-auto text-lg font-extrabold text-cyan">
-                  {s.points.toLocaleString()}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
           {hasMore && (
             <button
               onClick={loadMoreScores}
               disabled={loadingMore}
-              className="mt-5 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm font-bold text-muted transition hover:bg-raised hover:text-ink disabled:cursor-not-allowed"
+              className="mt-4 w-full rounded-xl border border-border bg-surface px-4 py-3.5 text-sm font-bold text-muted transition hover:bg-raised hover:text-ink disabled:cursor-not-allowed"
             >
               {loadingMore ? 'Ачааллаж байна…' : 'Илүү оноо харах'}
             </button>

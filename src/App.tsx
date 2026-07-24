@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { clearMultiSession, fetchRoom, loadMultiSession } from './api/rooms'
 import { useGameEngine } from './game/useGameEngine'
 import { useRoomLobby } from './game/useRoomLobby'
 import { GameScreen } from './screens/GameScreen'
 import { ResultsScreen } from './screens/ResultsScreen'
-import { Header, type NavView } from './components/Header'
+import { Sidebar, type NavView } from './components/Sidebar'
 import { Button } from './components/Button'
 import { readJoinParamsFromUrl } from './lib/joinUrl'
 import { flushAnalyticsEvents } from './api/analytics'
@@ -19,11 +20,18 @@ const MultiGameScreen = lazy(() => import('./screens/MultiGameScreen').then((m) 
 
 function initialNavView(): NavView {
   const join = readJoinParamsFromUrl()
-  // Join deep links always open home (Хамтдаа), even if ?category= is also present.
-  if (join.pin || join.invite || /^\/join(\/|$)/i.test(window.location.pathname)) return 'home'
+  // Join deep links open the "Өрөөнд орох" destination so the sidebar reflects intent.
+  if (join.pin || join.invite || /^\/join(\/|$)/i.test(window.location.pathname)) return 'join'
   const params = new URLSearchParams(window.location.search)
   if (params.get('daily') === '1') return 'home'
   return params.has('category') ? 'leaderboard' : 'home'
+}
+
+/** The three nav destinations that all render HomeScreen, mapped to its internal mode. */
+function homeModeFor(view: NavView): 'solo' | 'host' | 'join' {
+  if (view === 'create') return 'host'
+  if (view === 'join') return 'join'
+  return 'solo'
 }
 
 export default function App() {
@@ -118,8 +126,7 @@ export default function App() {
 
     if (multiSession) {
       return (
-        <div>
-          <Header active="home" onNavigate={navigate} />
+        <Shell active="home" onNavigate={navigate}>
           <Suspense fallback={<Loading />}><MultiSessionGate
             session={multiSession}
             onLeave={leaveMulti}
@@ -127,26 +134,27 @@ export default function App() {
               setMultiSession(next)
             }}
           /></Suspense>
-        </div>
+        </Shell>
       )
     }
 
     return (
-      <div>
-        <Header active={view} onNavigate={navigate} />
+      <Shell active={view} onNavigate={navigate}>
         <Suspense fallback={<Loading />}>{view === 'leaderboard' ? (
           <LeaderboardScreen />
         ) : view === 'account' ? (
           <AccountScreen />
         ) : (
           <HomeScreen
+            key={view}
+            initialMode={homeModeFor(view)}
             onStart={(slug, category, config) => void engine.start(slug, category, config)}
             onStartDaily={(slug, category, config) => void engine.startDaily(slug, category, config)}
             onEnterLobby={(session) => setMultiSession(session)}
             onOpenAccount={() => navigate('account')}
           />
         )}</Suspense>
-      </div>
+      </Shell>
     )
   }
 
@@ -154,6 +162,24 @@ export default function App() {
 }
 
 function Loading() { return <div className="flex min-h-[50vh] items-center justify-center text-muted">Ачааллаж байна…</div> }
+
+/** App chrome: left nav rail (desktop) / bottom bar (mobile) + scrollable content. */
+function Shell({
+  active,
+  onNavigate,
+  children,
+}: {
+  active: NavView
+  onNavigate: (view: NavView) => void
+  children: ReactNode
+}) {
+  return (
+    <div className="flex min-h-full">
+      <Sidebar active={active} onNavigate={onNavigate} />
+      <main className="min-w-0 flex-1 pb-24 lg:pb-0">{children}</main>
+    </div>
+  )
+}
 
 /** Routes lobby ↔ live multiplayer game from room.status (single lobby subscription). */
 function MultiSessionGate({

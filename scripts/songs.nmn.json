@@ -1,0 +1,23 @@
+{
+  "artist": { "name": "NMN", "slug": "nmn", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "Titi", "slug": "titi", "youtubeUrl": "https://youtu.be/_XXnTSeM_SI", "start": 30 },
+    { "title": "End", "slug": "end", "youtubeUrl": "https://youtu.be/DO-orE2rOd0", "start": 145 },
+    { "title": "Amarhan", "slug": "amarhan", "youtubeUrl": "https://youtu.be/o47A7A0glFw", "start": 15 },
+    { "title": "With You", "slug": "with-you", "youtubeUrl": "https://youtu.be/8XYInijU7Ac", "start": 35 },
+    { "title": "Tsahilbaa", "slug": "tsahilbaa", "youtubeUrl": "https://youtu.be/Kz55wcGzw8M", "start": 50 },
+    { "title": "Bolhi Hun", "slug": "bolhi-hun", "youtubeUrl": "https://youtu.be/6f4nLytwUhk", "start": 25 },
+    { "title": "Shuleg", "slug": "shuleg", "youtubeUrl": "https://youtu.be/KJJ4-YPCHk0", "start": 110 },
+    { "title": "Ene udaa", "slug": "ene-udaa", "youtubeUrl": "https://youtu.be/llprT4nDQ0Q", "start": 20 },
+    { "title": "Hyrorist", "slug": "hyrorist", "youtubeUrl": "https://youtu.be/oh6TRTEYZEE", "start": 15 },
+    { "title": "Special", "slug": "special", "youtubeUrl": "https://youtu.be/WwmvkUUDMHo", "start": 25 },
+    { "title": "Chamaig daa", "slug": "chamaig-daa", "youtubeUrl": "https://youtu.be/vxUVHklOrcY", "start": 30 },
+    { "title": "7", "slug": "7", "youtubeUrl": "https://youtu.be/Rn8ZKWRIgWA", "start": 20 },
+    { "title": "Zuvshuur", "slug": "zuvshuur", "youtubeUrl": "https://youtu.be/1neykAzjha0", "start": 90 },
+    { "title": "Uur humuus", "slug": "uur-humuus", "youtubeUrl": "https://youtu.be/lbCA9D1X7to", "start": 45 },
+    { "title": "Suulchiinh bish", "slug": "suulchiinh-bish", "youtubeUrl": "https://youtu.be/EiwLJYtNmHw", "start": 30 },
+    { "title": "Oh My GHXST", "slug": "oh-my-ghxst", "youtubeUrl": "https://youtu.be/fkMi0VXPOzk", "start": 15 },
+    { "title": "Heveeree", "slug": "heveeree", "youtubeUrl": "https://youtu.be/DOHGdDVmIOY", "start": 15 }
+  ]
+}

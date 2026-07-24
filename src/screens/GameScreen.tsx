@@ -80,28 +80,41 @@ export function GameScreen({ engine, onQuit }: Props) {
 
   const revealed = phase === 'revealed'
 
+  const optionPrompt =
+    round.answer.mediaType === 'image'
+      ? 'Энэ хэн бэ?'
+      : round.answer.mediaType === 'video'
+        ? 'Аль клип вэ?'
+        : 'Аль дуу вэ?'
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 py-10">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <div className="text-xs font-bold tracking-widest text-muted-2">РАУНД</div>
-          <div className="text-lg font-extrabold">
-            {roundIndex + 1}
-            <span className="text-muted"> / {config.rounds}</span>
+    <div className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
+      {/* Status bar */}
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <EqualizerBars className="h-5" />
+          <div>
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-2">Раунд</div>
+            <div className="text-lg font-black leading-none">
+              {roundIndex + 1}
+              <span className="font-bold text-muted-2"> / {config.rounds}</span>
+            </div>
           </div>
         </div>
-        <button onClick={() => { reset(); onQuit() }} className="text-sm text-muted hover:text-ink">
+        <button
+          onClick={() => { reset(); onQuit() }}
+          className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-muted transition hover:border-pink/60 hover:text-ink"
+        >
           Гарах
         </button>
         <div className="text-right">
-          <div className="text-xs font-bold tracking-widest text-muted-2">ОНОО</div>
-          <div className="text-lg font-extrabold text-cyan">{score.toLocaleString()}</div>
+          <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-2">Оноо</div>
+          <div className="text-lg font-black leading-none text-cyan">{score.toLocaleString()}</div>
         </div>
       </div>
 
       {/* Timer */}
-      <div className="mb-8">
+      <div className="mb-7">
         <TimerBar timeLeft={timeLeft} total={config.timePerRound} />
       </div>
 
@@ -109,7 +122,10 @@ export function GameScreen({ engine, onQuit }: Props) {
       <MediaStage item={round.answer} revealed={revealed} />
 
       {/* Options */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="mb-4 text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+        {optionPrompt}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
         {round.options.map((opt, i) => (
           <OptionCard
             key={opt.songId}
@@ -142,6 +158,11 @@ export function GameScreen({ engine, onQuit }: Props) {
           >
             Алгасах →
           </button>
+        </div>
+      )}
+      {!revealed && (
+        <div className="mt-3.5 text-center text-[11px] text-muted-2">
+          1–4 товчоор хариулна · H товчоор сэжүүр
         </div>
       )}
 

@@ -1,0 +1,25 @@
+{
+  "artist": { "name": "Uka", "slug": "uka", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "Margaashiin nar luu hamt aylah uu", "slug": "margaashiin-nar-luu-hamt-aylah-uu", "youtubeUrl": "https://youtu.be/y5LhP4i6rL4" },
+    { "title": "DO IT", "slug": "do-it", "youtubeUrl": "https://youtu.be/7XXeaDjAGyE" },
+    { "title": "Don't Stop", "slug": "dont-stop", "youtubeUrl": "https://youtu.be/dg0eCthIzPs" },
+    { "title": "Gantsaar duulaach", "slug": "gantsaar-duulaach", "youtubeUrl": "https://youtu.be/hoE9gAwJ2I4" },
+    { "title": "Us tsaital hamt", "slug": "us-tsaital-hamt", "youtubeUrl": "https://youtu.be/FyOuYaGOwKw" },
+    { "title": "Araas min tevreech", "slug": "araas-min-tevreech", "youtubeUrl": "https://youtu.be/RSdfiNZpKp0" },
+    { "title": "Hairtai gej heleech", "slug": "hairtai-gej-heleech", "youtubeUrl": "https://youtu.be/uJlYUxxruls" },
+    { "title": "Crash landing on you", "slug": "crash-landing-on-you", "youtubeUrl": "https://youtu.be/p-KPI_5b6SU" },
+    { "title": "Gurvan ugee heleh uu", "slug": "gurvan-ugee-heleh-uu", "youtubeUrl": "https://youtu.be/b_KVz1vx-Qs" },
+    { "title": "Erh Chuluulnu", "slug": "erh-chuluulnu", "youtubeUrl": "https://youtu.be/0yPMiNnth1A" },
+    { "title": "Muruudul bid 2", "slug": "muruudul-bid-2", "youtubeUrl": "https://youtu.be/HNsnCWKRtFI" },
+    { "title": "Tsagaaruulna", "slug": "tsagaaruulna", "youtubeUrl": "https://youtu.be/YaadKUFcgKg" },
+    { "title": "Sahiulsan Tenger", "slug": "sahiulsan-tenger", "youtubeUrl": "https://youtu.be/AujCCRJwNiI" },
+    { "title": "Aavd", "slug": "aavd", "youtubeUrl": "https://youtu.be/FOIrVEQRnMQ" },
+    { "title": "Gantsaardlaas buu ai", "slug": "gantsaardlaas-buu-ai", "youtubeUrl": "https://youtu.be/cUJFJA7uBFo" },
+    { "title": "Be cool", "slug": "be-cool", "youtubeUrl": "https://youtu.be/_5eWLkxZZzA" },
+    { "title": "Gerel asaa", "slug": "gerel-asaa", "youtubeUrl": "https://youtu.be/RWkCUISQaFQ" },
+    { "title": "Uul", "slug": "uul", "youtubeUrl": "https://youtu.be/UYlBqH4qvxk" },
+    { "title": "Tenger Hugjim Toglosoor", "slug": "tenger-hugjim-toglosoor", "youtubeUrl": "https://youtu.be/N8csgWJ4Urk" }
+  ]
+}

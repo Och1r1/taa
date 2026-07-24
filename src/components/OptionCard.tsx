@@ -12,8 +12,7 @@ interface Props {
   onPick: (songId: string) => void
 }
 
-const SHAPES = ['◆', '●', '▲', '■']
-const SHAPE_COLORS = ['#ec4899', '#22d3ee', '#f59e0b', '#a855f7']
+const SHAPE_COLORS = ['#ec4899', '#22d3ee', '#a855f7', '#34d399']
 
 export function OptionCard({
   option,
@@ -46,20 +45,20 @@ export function OptionCard({
       disabled={disabled || eliminated}
       onClick={() => onPick(option.songId)}
       aria-label={`${index + 1}. ${option.title}`}
-      className={`group flex w-full items-center gap-4 rounded-2xl border-2 px-5 py-4 text-left
+      className={`group flex w-full items-center gap-4 rounded-2xl border-2 px-6 py-5 text-left
         text-ink transition disabled:cursor-default ${stateClass}`}
     >
       <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg font-bold"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-black"
         style={{
           color: SHAPE_COLORS[index % 4],
-          backgroundColor: `${SHAPE_COLORS[index % 4]}1a`,
+          backgroundColor: `${SHAPE_COLORS[index % 4]}1f`,
         }}
       >
-        <span aria-hidden="true">{SHAPES[index % 4]}</span>
+        <span aria-hidden="true">{index + 1}</span>
       </span>
       <span
-        className="text-base font-semibold"
+        className="text-lg font-semibold"
         style={{ color: '#ffffff', textDecoration: eliminated && !revealed ? 'line-through' : 'none' }}
       >
         {option.title}

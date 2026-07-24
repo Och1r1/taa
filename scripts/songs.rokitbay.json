@@ -1,0 +1,26 @@
+{
+  "artist": { "name": "Rokit Bay", "slug": "rokit-bay", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "HYAZGAARGUI", "slug": "hyazgaargui", "youtubeUrl": "https://youtu.be/y-p21fbzsyk" },
+    { "title": "BLAAVGAI", "slug": "blaavgai", "youtubeUrl": "https://youtu.be/DjrUWEioAg0" },
+    { "title": "Uulen tsoorhoin nar", "slug": "uulen-tsoorhoin-nar", "youtubeUrl": "https://youtu.be/GayhAwuDoiI" },
+    { "title": "Galzuu Novsh", "slug": "galzuu-novsh", "youtubeUrl": "https://youtu.be/MeU95u9JOR4" },
+    { "title": "Jinguidsen Puujin", "slug": "jinguidsen-puujin", "youtubeUrl": "https://youtu.be/c8x4GIaUg7k" },
+    { "title": "Bor Arist Gump", "slug": "bor-arist-gump", "youtubeUrl": "https://youtu.be/TJJBbTgLIas" },
+    { "title": "Aadar", "slug": "aadar", "youtubeUrl": "https://youtu.be/YDPj3MMPWFQ" },
+    { "title": "The Broken Souls", "slug": "the-broken-souls", "youtubeUrl": "https://youtu.be/R9iz6GzcoIs" },
+    { "title": "Evderhii Hun", "slug": "evderhii-hun", "youtubeUrl": "https://youtu.be/aQfa1XlGcBI" },
+    { "title": "Busdiin Chadaaguig", "slug": "busdiin-chadaaguig", "youtubeUrl": "https://youtu.be/R9o1D0p_ihc" },
+    { "title": "Yanjinlham", "slug": "yanjinlham", "youtubeUrl": "https://youtu.be/AmN7R_u_K9c" },
+    { "title": "Boroo", "slug": "boroo", "youtubeUrl": "https://youtu.be/nIBnskZMeDw" },
+    { "title": "Sahilga sul", "slug": "sahilga-sul", "youtubeUrl": "https://youtu.be/0_H5zHb1ov0" },
+    { "title": "Duu Muutai Hun", "slug": "duu-muutai-hun", "youtubeUrl": "https://youtu.be/9eVManpS1lM" },
+    { "title": "Ayultai Bus", "slug": "ayultai-bus", "youtubeUrl": "https://youtu.be/SndnYHFnkxE" },
+    { "title": "Zugaatai Bailaa", "slug": "zugaatai-bailaa", "youtubeUrl": "https://youtu.be/yPEdgITbjOE" },
+    { "title": "Neg Udriin Haan", "slug": "neg-udriin-haan", "youtubeUrl": "https://youtu.be/3rZ24BGldCE" },
+    { "title": "Bertegchin", "slug": "bertegchin", "youtubeUrl": "https://youtu.be/BVJxzX87tg4" },
+    { "title": "E Tseg", "slug": "e-tseg", "youtubeUrl": "https://youtu.be/GvsqM3eMi8M" },
+    { "title": "Bid 2", "slug": "bid-2", "youtubeUrl": "https://youtu.be/vts8qQQLhBM" }
+  ]
+}

@@ -208,16 +208,18 @@ export function LobbyScreen({
     )
   }
 
+  const onlineSeated = seatedPlayers.filter((player) => onlineIds.has(player.id)).length
+
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
-      <div className="mb-8 animate-fade-up">
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-2">Хамтдаа · лобби</p>
-        <h1 className="mt-2 text-3xl font-extrabold text-ink sm:text-4xl">
+    <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">
+      <div className="mb-6 animate-fade-up">
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-cyan">Хамтдаа · лобби</p>
+        <h1 className="mt-1.5 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
           {session.isHost ? 'Өрөө бэлэн' : 'Өрөөнд нэгдлээ'}
         </h1>
-        <p className="mt-2 text-muted">
+        <p className="mt-2 text-sm text-muted">
           {session.isHost
-            ? 'Найзууддаа QR эсвэл холбоос илгээгээд бэлэн болмогц эхлүүлнэ үү. Дахин тоглох үед оноо шинэчлэгдэнэ.'
+            ? 'Найзууддаа QR эсвэл PIN илгээгээд, бүгд орсны дараа эхлүүлээрэй.'
             : `Та ${session.nickname} нэрээр нэгдсэн. Хөтлөгч тоглоом эхлүүлэхийг хүлээнэ үү.`}
         </p>
       </div>
@@ -227,7 +229,7 @@ export function LobbyScreen({
           <EqualizerBars className="h-5" /> Лобби ачааллаж байна…
         </div>
       ) : error && !room ? (
-        <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3">
+        <div className="rounded-2xl border border-pink/40 bg-pink/10 px-4 py-3">
           <p className="text-sm text-pink">{error}</p>
           <Button className="mt-4" variant="ghost" onClick={onLeave}>
             Нүүр рүү буцах
@@ -243,128 +245,155 @@ export function LobbyScreen({
         </div>
       ) : (
         <>
-          <div className="rounded-2xl border border-border bg-surface p-6 text-center sm:p-8">
-            <div className="text-xs font-bold uppercase tracking-widest text-muted-2">Өрөөний код</div>
-            <div className="mt-3 font-mono text-5xl font-extrabold tracking-[0.35em] text-ink sm:text-6xl">
-              {pin}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            {/* PIN + config */}
+            <div className="flex flex-col rounded-2xl border border-border bg-gradient-to-b from-surface to-base p-6 sm:p-7">
+              <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+                Өрөөний код
+              </div>
+              <div className="mt-1.5 font-mono text-5xl font-extrabold tracking-[0.14em] text-ink sm:text-[52px]">
+                {pin}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                {visibility === 'public' && (
+                  <button
+                    type="button"
+                    onClick={() => void copyText('pin', pin)}
+                    className="text-sm font-bold text-cyan hover:underline"
+                  >
+                    {copied === 'pin' ? 'Хуулагдлаа ✓' : 'PIN хуулах'}
+                  </button>
+                )}
+                {shareUrl && (
+                  <button
+                    type="button"
+                    onClick={() => void copyText('link', shareUrl)}
+                    className="text-sm font-bold text-cyan hover:underline"
+                  >
+                    {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
+                  </button>
+                )}
+                {session.isHost && visibility === 'private' && (
+                  <button
+                    type="button"
+                    disabled={rotating}
+                    onClick={() => void handleRotateInvite()}
+                    className="text-sm font-bold text-pink hover:underline disabled:opacity-50"
+                  >
+                    {rotating ? 'Шинэчилж байна…' : 'Урилга шинэчлэх'}
+                  </button>
+                )}
+                <span className="text-xs font-bold uppercase tracking-[0.12em] text-muted-2">
+                  {visibility === 'private' ? '· Хувийн өрөө' : '· Нийтийн өрөө'}
+                </span>
+              </div>
+
+              {room && (
+                <div className="mt-5 border-t border-border pt-5">
+                  <div className="mb-3 text-xs font-extrabold uppercase tracking-[0.12em] text-muted-2">
+                    Тоглоомын тохиргоо
+                  </div>
+                  {session.isHost ? (
+                    <>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
+                        <div>
+                          <div className="mb-1.5 text-xs text-muted-2">Багц</div>
+                          <div className="font-extrabold text-ink">{room.artistSlug}</div>
+                        </div>
+                        <div>
+                          <div className="mb-1.5 text-xs text-muted-2">Раунд</div>
+                          <PillToggle
+                            value={lobbyRounds}
+                            onChange={setLobbyRounds}
+                            options={[3, 5, 10, 15].map((value) => ({ value, label: String(value) }))}
+                          />
+                        </div>
+                        <div>
+                          <div className="mb-1.5 text-xs text-muted-2">Хугацаа</div>
+                          <PillToggle
+                            value={lobbyTimePerRound}
+                            onChange={setLobbyTimePerRound}
+                            options={[10, 15, 20, 30, 45].map((value) => ({ value, label: `${value}с` }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <Button
+                          variant="ghost"
+                          disabled={
+                            configBusy ||
+                            (lobbyRounds === room.rounds && lobbyTimePerRound === room.timePerRound)
+                          }
+                          onClick={() => void handleSaveConfig()}
+                        >
+                          {configBusy ? 'Хадгалж байна…' : 'Тохиргоо хадгалах'}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-wrap gap-8">
+                      <div>
+                        <div className="mb-1.5 text-xs text-muted-2">Багц</div>
+                        <div className="font-extrabold text-ink">{room.artistSlug}</div>
+                      </div>
+                      <div>
+                        <div className="mb-1.5 text-xs text-muted-2">Раунд</div>
+                        <div className="font-extrabold text-ink">{room.rounds}</div>
+                      </div>
+                      <div>
+                        <div className="mb-1.5 text-xs text-muted-2">Хугацаа</div>
+                        <div className="font-extrabold text-ink">{room.timePerRound}с</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-              {visibility === 'public' && (
-                <button
-                  type="button"
-                  onClick={() => void copyText('pin', pin)}
-                  className="text-sm font-bold text-cyan hover:underline"
-                >
-                  {copied === 'pin' ? 'Хуулагдлаа ✓' : 'PIN хуулах'}
-                </button>
-              )}
-              {shareUrl && (
-                <button
-                  type="button"
-                  onClick={() => void copyText('link', shareUrl)}
-                  className="text-sm font-bold text-cyan hover:underline"
-                >
-                  {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
-                </button>
-              )}
-              {session.isHost && visibility === 'private' && (
-                <button
-                  type="button"
-                  disabled={rotating}
-                  onClick={() => void handleRotateInvite()}
-                  className="text-sm font-bold text-pink hover:underline disabled:opacity-50"
-                >
-                  {rotating ? 'Шинэчилж байна…' : 'Урилга шинэчлэх'}
-                </button>
+
+            {/* QR */}
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface p-6 text-center">
+              {shareUrl ? (
+                <>
+                  <div className="rounded-2xl bg-white p-3">
+                    <QRCodeSVG value={shareUrl} size={150} marginSize={0} title="Өрөөнд нэгдэх QR" />
+                  </div>
+                  <p className="mt-3.5 max-w-[220px] text-xs text-muted">
+                    {visibility === 'private'
+                      ? 'Урилгын холбоос — PIN-аар орж болохгүй.'
+                      : 'Утасны камераар уншуулаад нэрээ оруулаад орно.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void copyText('link', shareUrl)}
+                    className="mt-2.5 text-sm font-bold text-cyan hover:underline"
+                  >
+                    {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
+                  </button>
+                  {session.isHost && room && (
+                    <button
+                      type="button"
+                      onClick={() => void enterPresenterMode()}
+                      className="mt-3 rounded-xl border border-cyan/40 bg-cyan/10 px-4 py-2.5 text-sm font-bold text-cyan hover:bg-cyan/20"
+                    >
+                      ⛶ Танилцуулах горим
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted">QR холбоос бэлдэж байна…</p>
               )}
             </div>
-            <p className="mt-3 text-xs font-bold uppercase tracking-widest text-muted-2">
-              {visibility === 'private' ? 'Хувийн өрөө' : 'Нийтийн өрөө'}
-            </p>
-            {room && (
-              <p className="mt-4 text-sm text-muted">
-                {room.artistSlug} · {room.rounds} раунд · {room.timePerRound}с
-              </p>
-            )}
           </div>
 
-          {session.isHost && shareUrl && (
-            <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-6 sm:flex-row sm:items-start sm:gap-6 sm:p-8">
-              <div className="rounded-xl bg-white p-3">
-                <QRCodeSVG value={shareUrl} size={160} marginSize={0} title="Өрөөнд нэгдэх QR" />
-              </div>
-              <div className="min-w-0 flex-1 text-center sm:text-left">
-                <div className="text-xs font-bold uppercase tracking-widest text-muted-2">
-                  QR-аар нэгдэх
-                </div>
-                <p className="mt-2 text-sm text-muted">
-                  {visibility === 'private'
-                    ? 'Урилгын холбоос — PIN-аар орж болохгүй.'
-                    : 'Утасны камераар уншуулаад нэрийгээ оруулаад орно.'}
-                </p>
-                <p className="mt-3 break-all font-mono text-xs text-muted-2">{shareUrl}</p>
-                <button
-                  type="button"
-                  onClick={() => void copyText('link', shareUrl)}
-                  className="mt-3 text-sm font-bold text-cyan hover:underline"
-                >
-                  {copied === 'link' ? 'Холбоос хуулагдлаа ✓' : 'Холбоос хуулах'}
-                </button>
-              </div>
+          {/* Players */}
+          <div className="mb-3 mt-6 flex items-center justify-between">
+            <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+              Тоглогчид · {seatedPlayers.length} / 20
             </div>
-          )}
-
-          {session.isHost && room && (
-            <section className="mt-6 rounded-2xl border border-border bg-surface p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-muted-2">Тоглоомын тохиргоо</div>
-                  <p className="mt-1 text-sm text-muted">Эхлүүлэхээс өмнө раунд болон хугацааг өөрчилж болно.</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  disabled={
-                    configBusy ||
-                    (lobbyRounds === room.rounds && lobbyTimePerRound === room.timePerRound)
-                  }
-                  onClick={() => void handleSaveConfig()}
-                >
-                  {configBusy ? 'Хадгалж байна…' : 'Хадгалах'}
-                </Button>
-              </div>
-              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:gap-10">
-                <div>
-                  <div className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-2">Раунд</div>
-                  <PillToggle
-                    value={lobbyRounds}
-                    onChange={setLobbyRounds}
-                    options={[3, 5, 10, 15].map((value) => ({ value, label: String(value) }))}
-                  />
-                </div>
-                <div>
-                  <div className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-2">Хугацаа</div>
-                  <PillToggle
-                    value={lobbyTimePerRound}
-                    onChange={setLobbyTimePerRound}
-                    options={[10, 15, 20, 30, 45].map((value) => ({ value, label: `${value}с` }))}
-                  />
-                </div>
-              </div>
-            </section>
-          )}
-
-          {session.isHost && room && (
-            <button
-              type="button"
-              onClick={() => void enterPresenterMode()}
-              className="mt-5 rounded-xl border border-cyan/40 bg-cyan/10 px-4 py-3 text-sm font-bold text-cyan hover:bg-cyan/20"
-            >
-              ⛶ Танилцуулах горим
-            </button>
-          )}
-
-          <div className="mb-3 mt-10 text-xs font-bold uppercase tracking-widest text-muted-2">
-            Тоглогчид ({seatedPlayers.length}/20)
+            <span className="inline-flex items-center gap-1.5 text-xs text-accent-green">
+              <span className="inline-block h-2 w-2 rounded-full bg-accent-green" />
+              {onlineSeated} онлайн
+            </span>
           </div>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
             {seatedPlayers.map((player) => {
@@ -381,7 +410,7 @@ export function LobbyScreen({
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="relative">
                       <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
                           player.isHost ? 'bg-pink/20 text-pink' : 'bg-raised text-ink-soft'
                         }`}
                       >
@@ -389,7 +418,7 @@ export function LobbyScreen({
                       </span>
                       <span
                         className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-surface ${
-                          online ? 'bg-cyan' : 'bg-muted-2'
+                          online ? 'bg-accent-green' : 'bg-muted-2'
                         }`}
                         title={online ? 'Онлайн' : 'Офлайн'}
                       />
@@ -398,20 +427,20 @@ export function LobbyScreen({
                       {player.nickname}
                       {isYou ? ' · та' : ''}
                       {!online && !isYou ? (
-                        <span className="ml-2 text-xs font-bold text-muted">офлайн</span>
+                        <span className="ml-2 text-xs font-semibold text-muted-2">офлайн</span>
                       ) : null}
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {session.isHost && !player.isHost && (
-                      <div className="flex overflow-hidden rounded-lg border border-border text-xs font-bold">
+                      <div className="flex overflow-hidden rounded-lg border border-border text-xs font-extrabold">
                         {[1, 2].map((team) => (
                           <button
                             key={team}
                             type="button"
                             disabled={assigningId === player.id}
                             onClick={() => void handleAssignTeam(player.id, team as 1 | 2)}
-                            className={`px-2 py-1 ${player.team === team ? (team === 1 ? 'bg-cyan/20 text-cyan' : 'bg-pink/20 text-pink') : 'text-muted hover:bg-raised'}`}
+                            className={`px-2.5 py-1 ${player.team === team ? (team === 1 ? 'bg-cyan/20 text-cyan' : 'bg-pink/20 text-pink') : 'text-muted-2 hover:bg-raised'}`}
                           >
                             Б{team}
                           </button>
@@ -419,7 +448,7 @@ export function LobbyScreen({
                       </div>
                     )}
                     {player.isHost && (
-                      <span className="rounded-lg bg-raised px-2.5 py-1 text-xs font-bold text-muted">
+                      <span className="rounded-lg bg-raised px-2.5 py-1 text-xs font-extrabold text-muted">
                         Хөтлөгч
                       </span>
                     )}
@@ -428,7 +457,7 @@ export function LobbyScreen({
                         type="button"
                         disabled={busy || starting || kickingId === player.id}
                         onClick={() => void handleKick(player.id)}
-                        className="rounded-lg px-2.5 py-1 text-xs font-bold text-pink hover:bg-pink/10 disabled:opacity-50"
+                        className="rounded-lg px-2 py-1 text-xs font-bold text-pink hover:bg-pink/10 disabled:opacity-50"
                       >
                         {kickingId === player.id ? 'Хасаж байна…' : 'Хасах'}
                       </button>
@@ -444,8 +473,8 @@ export function LobbyScreen({
 
           {spectators.length > 0 && (
             <>
-              <div className="mb-3 mt-8 text-xs font-bold uppercase tracking-widest text-muted-2">
-                Үзэгчид ({spectators.length}/20)
+              <div className="mb-3 mt-6 text-xs font-extrabold uppercase tracking-[0.14em] text-muted-2">
+                Үзэгчид · {spectators.length} / 20
               </div>
               <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
                 {spectators.map((player) => {
@@ -466,7 +495,7 @@ export function LobbyScreen({
                           type="button"
                           disabled={busy || starting || kickingId === player.id}
                           onClick={() => void handleKick(player.id)}
-                          className="rounded-lg px-2.5 py-1 text-xs font-bold text-pink hover:bg-pink/10 disabled:opacity-50"
+                          className="rounded-lg px-2 py-1 text-xs font-bold text-pink hover:bg-pink/10 disabled:opacity-50"
                         >
                           {kickingId === player.id ? 'Хасаж байна…' : 'Хасах'}
                         </button>
@@ -478,32 +507,37 @@ export function LobbyScreen({
             </>
           )}
 
-          {session.isHost && room && (
-            <div className="mt-8">
-              <Button
-                disabled={starting || players.length < 1}
-                onClick={() => void handleStart()}
-                className="w-full py-4 text-base sm:w-auto sm:px-12"
-              >
-                {starting ? 'Эхлүүлж байна…' : '▶ Тоглоом эхлүүлэх'}
-              </Button>
-              <p className="mt-2 text-sm text-muted">
-                Найзууд QR эсвэл PIN-аар нэгдсэний дараа эхлүүлнэ үү. Офлайн суудлыг хасаж болно.
-              </p>
-            </div>
-          )}
-
           {actionError && (
-            <p className="mt-4 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
+            <p className="mt-4 rounded-2xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
               {actionError}
             </p>
           )}
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button variant="ghost" disabled={busy || starting} onClick={() => void handleLeave()}>
-              {session.isHost ? 'Өрөөг хаах' : 'Гарах'}
-            </Button>
-          </div>
+          {session.isHost && room ? (
+            <>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Button
+                  disabled={starting || players.length < 1}
+                  onClick={() => void handleStart()}
+                  className="py-4 text-base sm:px-10"
+                >
+                  {starting ? 'Эхлүүлж байна…' : '▶ Тоглоом эхлүүлэх'}
+                </Button>
+                <Button variant="ghost" disabled={busy || starting} onClick={() => void handleLeave()}>
+                  Өрөөг хаах
+                </Button>
+              </div>
+              <p className="mt-2 text-sm text-muted">
+                Найзууд QR эсвэл PIN-аар нэгдсэний дараа эхлүүлнэ үү. Офлайн суудлыг хасаж болно.
+              </p>
+            </>
+          ) : (
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button variant="ghost" disabled={busy || starting} onClick={() => void handleLeave()}>
+                Гарах
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>

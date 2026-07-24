@@ -1,0 +1,18 @@
+{
+  "artist": { "name": "Mol Boyz", "slug": "mol-boyz", "category": "song" },
+  "defaults": { "duration": 15 },
+  "songs": [
+    { "title": "Mollove", "slug": "mollove", "youtubeUrl": "https://youtu.be/q1dOsYa4Y5I" },
+    { "title": "Uvliin uyanga", "slug": "uvliin-uyanga", "youtubeUrl": "https://youtu.be/0eJA_6Qz_xU" },
+    { "title": "Gants shuvuu", "slug": "gants-shuvuu", "youtubeUrl": "https://youtu.be/eNRJTxhebSw" },
+    { "title": "Tsuivan", "slug": "tsuivan", "youtubeUrl": "https://youtu.be/1bbu9qoAP6Y" },
+    { "title": "Soyonde klab", "slug": "soyonde-klab", "youtubeUrl": "https://youtu.be/jOVZvbtW3No" },
+    { "title": "Minii tereg", "slug": "minii-tereg", "youtubeUrl": "https://youtu.be/CW6EAy7e9sU" },
+    { "title": "Duuntsar", "slug": "duuntsar", "youtubeUrl": "https://youtu.be/pW3aCdERaow" },
+    { "title": "5 10 20 useg", "slug": "5-10-20-useg", "youtubeUrl": "https://youtu.be/Yi4urboA-g8" },
+    { "title": "Hartsnaas chine", "slug": "hartsnaas-chine", "youtubeUrl": "https://youtu.be/JnbMDewoea4" },
+    { "title": "Eejiin trap", "slug": "eejiin-trap", "youtubeUrl": "https://youtu.be/jjyjQVbkCP0" },
+    { "title": "Uzel bodol", "slug": "uzel-bodol", "youtubeUrl": "https://youtu.be/-8iF_GR30QM" },
+    { "title": "My hair", "slug": "my-hair", "youtubeUrl": "https://youtu.be/6e_Fo1W-grY" }
+  ]
+}
